@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ViewList
@@ -159,18 +160,26 @@ fun TelegramRoute(tab: String = "files") {
     }
     LaunchedEffect(tgError) { if (tgError != null) codeErr = true }
     var filter by remember { mutableStateOf("all") }
-    var grid by remember { mutableStateOf(false) }
+    var grids by remember { mutableStateOf(mapOf("photos" to true)) }
+    val grid = grids[tab] ?: false
+    fun setGrid(v: Boolean) { grids = grids + (tab to v) }
+    // Álbum (carpeta) abierto en Audio/Fotos; null = lista de álbumes.
+    var openAlbum by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(tab) { openAlbum = null }
     // Nube real (7b): repo manda, mock fuera.
     val cloud by TgRepo.files.collectAsState()
     // Música: todos los audios por carpeta y título. Fotos: imágenes y vídeos, recientes primero.
     val tabList = remember(cloud, tab) {
         when (tab) {
-            "music" -> cloud.filter { it.kind == TgKind.AUDIO }
+            "audio" -> cloud.filter { it.kind == TgKind.AUDIO }
                 .sortedWith(compareBy({ it.folder.lowercase() }, { it.showTitle().lowercase() }))
             "photos" -> cloud.filter { it.kind == TgKind.IMAGE || it.kind == TgKind.VIDEO }
                 .sortedByDescending { it.dateSec }
             else -> null
         }
+    }
+    val openAlbumName = remember(tabList, openAlbum) {
+        albumsOf(tabList.orEmpty()).firstOrNull { it.folder == openAlbum }?.name ?: "Unsorted"
     }
     val keeps by TgRepo.keeps.collectAsState()
     val syncing by TgRepo.loading.collectAsState()
@@ -204,7 +213,8 @@ fun TelegramRoute(tab: String = "files") {
             (it.kind == TgKind.AUDIO || it.kind == TgKind.VIDEO) &&
                 (album.isEmpty() || it.folder == album || it.folder.startsWith(prefix))
         }
-        val list = if (q.isEmpty()) listOf(f) else q
+        val list = (if (tab == "audio" && openAlbum != null) tabList.orEmpty().filter { it.folder == openAlbum } else q)
+            .ifEmpty { listOf(f) }
         val idx = list.indexOfFirst { it.id == f.id }.coerceAtLeast(0)
         TgPlayer.init(ctx)
         TgPlayer.play(list, idx)
@@ -236,6 +246,9 @@ fun TelegramRoute(tab: String = "files") {
     androidx.activity.compose.BackHandler(
         enabled = searching && viewerIdx == null && textFile == null && !sheet
     ) { closeSearch() }
+    androidx.activity.compose.BackHandler(
+        enabled = openAlbum != null && !searching && viewerIdx == null && textFile == null && !sheet
+    ) { openAlbum = null }
     // Carpeta al último: si hay player/visor/lector/diálogo/búsqueda, el back no navega.
     androidx.activity.compose.BackHandler(
         enabled = view == 2 && dir.isNotEmpty() && !searching && viewerIdx == null && textFile == null && !sheet && manageFile == null && manageDir == null
@@ -326,12 +339,15 @@ fun TelegramRoute(tab: String = "files") {
 
     Box(Modifier.fillMaxSize()) {
     NimboScaffold(
-        title = if (view != 2) "Nimbo" else when (tab) {
-            "music" -> "Music"
+        title = if (view != 2) "Nimbo" else if (openAlbum != null) openAlbumName else when (tab) {
+            "audio" -> "Audio"
             "photos" -> "Photos"
             else -> "Files"
         },
         snack = snack,
+        navigationIcon = if (view == 2 && openAlbum != null) {
+            { IconButton(onClick = { openAlbum = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+        } else null,
         actions = {
             if (selection.isNotEmpty()) {
                 val files = cloud.filter { it.id in selection }
@@ -369,7 +385,13 @@ fun TelegramRoute(tab: String = "files") {
                 }
                 if (view == 2 && !searching) {
                     IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, "Search") }
-                    if (tab != "photos") {
+                    IconButton(onClick = { setGrid(!grid) }) {
+                        Icon(
+                            if (grid) Icons.Filled.ViewList else Icons.Filled.GridView,
+                            if (grid) "List view" else "Grid view"
+                        )
+                    }
+                    if (tab == "files") {
                         IconButton(onClick = { filterSheet = true }) {
                             Icon(Icons.Filled.FilterList, "Filter and display")
                         }
@@ -515,9 +537,12 @@ fun TelegramRoute(tab: String = "files") {
                         }
                     }
                     Box(Modifier.weight(1f)) {
-                    FilesView(
+                    val albums = if (tabList != null && openAlbum == null && query.isBlank())
+                        remember(tabList, tab) { albumsOf(tabList, byDate = tab == "photos") } else null
+                    if (albums != null) AlbumsView(albums, audio = tab == "audio", grid = grid, onOpen = { openAlbum = it })
+                    else FilesView(
                     all = cloud,
-                    flat = tabList,
+                    flat = if (openAlbum != null && query.isBlank()) tabList?.filter { it.folder == openAlbum } else tabList,
                     compact = tab == "photos",
                     filter = if (tab == "files") filter else "all",
                     dir = dir,
@@ -525,8 +550,8 @@ fun TelegramRoute(tab: String = "files") {
                     onDir = { dir = it; closeSearch() },
                     query = query,
                     onFilter = { filter = it },
-                    grid = grid || tab == "photos",
-                    onGrid = { grid = it },
+                    grid = grid,
+                    onGrid = { setGrid(it) },
                     // Sin parpadeo: con lotes activos la card ya muestra progreso.
                     syncing = syncing && batches.isEmpty(),
                     onPlay = { f ->
@@ -548,7 +573,7 @@ fun TelegramRoute(tab: String = "files") {
                                 // la raíz del disco y todas sus subcarpetas vecinas.
                                 val album = if ('/' in dir) dir.substringBefore('/') else dir
                                 val prefix = "$album/"
-                                val list = if (tab == "photos") tabList.orEmpty().filter { it.kind == TgKind.IMAGE } else cloud.filter {
+                                val list = if (tab == "photos") tabList.orEmpty().filter { it.kind == TgKind.IMAGE && (openAlbum == null || it.folder == openAlbum) } else cloud.filter {
                                     it.kind == TgKind.IMAGE &&
                                         (it.folder == album || (album.isNotEmpty() && it.folder.startsWith(prefix)))
                                 }
@@ -606,8 +631,6 @@ fun TelegramRoute(tab: String = "files") {
                                 onSelect = { filter = it }
                             )
                         }
-                        Text("Display", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
-                        Box(Modifier.padding(horizontal = 16.dp)) { ViewToggle(grid = grid, onGrid = { grid = it }) }
                         Text(
                             tgStats(cloud),
                             style = MaterialTheme.typography.bodySmall,
@@ -1591,29 +1614,6 @@ private fun SheetRow(label: String, red: Boolean = false, onClick: () -> Unit) {
 }
 
 // Toggle lista/grid con tints explícitos (un solo uso, queda aquí).
-@Composable
-private fun ViewToggle(grid: Boolean, onGrid: (Boolean) -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Row(
-        Modifier.clip(MaterialTheme.shapes.extraLarge).background(cs.surfaceContainerHighest).padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        listOf(false to Icons.Filled.ViewList, true to Icons.Filled.GridView).forEach { (v, ic) ->
-            val sel = grid == v
-            Box(
-                Modifier.clip(CircleShape)
-                    .background(if (sel) cs.secondaryContainer else Color.Transparent)
-                    .clickable { onGrid(v) }.padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    ic, if (v) "Grid view" else "List view",
-                    tint = if (sel) cs.onSecondaryContainer else cs.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
 
 // Play redondo prototipo: filled cuando es el actual, tonal resto.
 @Composable

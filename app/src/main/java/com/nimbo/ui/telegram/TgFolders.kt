@@ -171,6 +171,55 @@ fun applyCoverLinks(files: List<TgFile>, links: Map<String, Int>): List<TgFile> 
         if (id != null && id != 0) f.copy(thumbFileId = id) else f
     }
 
+// Álbum = carpeta con archivos de la pestaña (Audio o Fotos), directos.
+data class TgAlbum(val folder: String, val files: List<TgFile>, val title: String = "") {
+    val name: String get() = title.ifEmpty { folder.substringAfterLast('/').ifEmpty { "Unsorted" } }
+    val parent: String get() = parentOf(folder)
+    val durSec: Int get() = files.sumOf { it.durSec }
+    val sizeBytes: Long get() = files.sumOf { it.sizeBytes }
+    val lastDate: Int get() = files.maxOfOrNull { it.dateSec } ?: 0
+}
+
+// Audio: alfabético por carpeta. Fotos: el álbum con la subida más reciente primero.
+// Nombres repetidos ("CD1", "Audio"…): el título suma la carpeta padre.
+fun albumsOf(files: List<TgFile>, byDate: Boolean = false): List<TgAlbum> {
+    val groups = files.groupBy { it.folder }
+    val dupes = groups.keys.groupingBy { it.substringAfterLast('/') }.eachCount()
+    val all = groups.map { (k, v) ->
+        val leaf = k.substringAfterLast('/')
+        val parent = parentOf(k).substringAfterLast('/')
+        TgAlbum(k, v, if ((dupes[leaf] ?: 0) > 1 && parent.isNotEmpty()) "$parent / $leaf" else "")
+    }
+    return if (byDate) all.sortedByDescending { it.lastDate } else all.sortedBy { it.folder.lowercase() }
+}
+
+// Artista del álbum solo si es uno (el más común con ≥ mitad de pistas).
+fun albumArtist(a: TgAlbum): String {
+    val top = a.files.map { it.artist }.filter { it.isNotEmpty() }
+        .groupingBy { it }.eachCount().maxByOrNull { it.value } ?: return ""
+    return if (top.value * 2 >= a.files.size) top.key else ""
+}
+
+fun albumSubtitle(a: TgAlbum, audio: Boolean): String =
+    listOf(if (audio) albumArtist(a) else "", a.parent).filter { it.isNotEmpty() }.joinToString(" · ")
+
+// "12 tracks · 48:22 · 142.0 MB · 14 Oct" / "30 photos · 2 videos · 1.2 GB · 3 Oct".
+fun albumInfo(a: TgAlbum, audio: Boolean): String {
+    fun n(c: Int, one: String) = "$c $one" + if (c == 1) "" else "s"
+    val parts = mutableListOf<String>()
+    if (audio) {
+        parts += n(a.files.size, "track")
+        if (a.durSec > 0) parts += fmtDur(a.durSec)
+    } else {
+        val vids = a.files.count { it.kind == TgKind.VIDEO }
+        if (a.files.size - vids > 0) parts += n(a.files.size - vids, "photo")
+        if (vids > 0) parts += n(vids, "video")
+    }
+    parts += formatBytes(a.sizeBytes)
+    if (a.lastDate > 0) parts += fmtDate(a.lastDate)
+    return parts.joinToString(" · ")
+}
+
 // Búsqueda: sin acentos ni mayúsculas; cada palabra debe aparecer (AND).
 fun normSearch(s: String): String =
     java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)

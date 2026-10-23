@@ -334,6 +334,33 @@ class TgRepoTest {
         )
     }
 
+    @Test fun albums() {
+        fun au(id: String, folder: String, artist: String, dur: Int) = com.nimbo.ui.telegram.TgFile(
+            id, "$id.mp3", TgKind.AUDIO, "", 1L shl 20, folder = folder, artist = artist, durSec = dur, dateSec = 1728691200
+        )
+        val files = listOf(
+            au("a", "music/rock/b-side", "Some Artist", 60),
+            au("b", "music/rock/b-side", "Some Artist", 120),
+            au("c", "music/rock/b-side", "Guest", 30),
+            au("d", "", "", 0)
+        )
+        val albums = com.nimbo.ui.telegram.albumsOf(files)
+        assertEquals(listOf("", "music/rock/b-side"), albums.map { it.folder })
+        val a = albums[1]
+        assertEquals("b-side", a.name)
+        assertEquals("Unsorted", albums[0].name)
+        assertEquals("Some Artist", com.nimbo.ui.telegram.albumArtist(a))
+        assertEquals("Some Artist · music/rock", com.nimbo.ui.telegram.albumSubtitle(a, true))
+        assertEquals("3 tracks · 3:30 · 3.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(a, true))
+        assertEquals("1 track · 1.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(albums[0], true))
+        // Subcarpeta con nombre repetido: el título suma el padre.
+        val twins = com.nimbo.ui.telegram.albumsOf(listOf(au("x", "Album A/CD1", "", 1), au("y", "Album B/CD1", "", 1), au("z", "Solo/Disc", "", 1)))
+        assertEquals(listOf("Album A / CD1", "Album B / CD1", "Disc"), twins.map { it.name })
+        val pic = com.nimbo.ui.telegram.TgFile("p", "p.jpg", TgKind.IMAGE, "", 1L shl 20, folder = "trip", dateSec = 1728691200)
+        val vid = pic.copy(id = "v", kind = TgKind.VIDEO)
+        assertEquals("1 photo · 1 video · 2.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(com.nimbo.ui.telegram.TgAlbum("trip", listOf(pic, vid)), false))
+    }
+
     @Test fun coverHash() {
         // SHA-256("abc") vector conocido.
         assertEquals(

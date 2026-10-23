@@ -111,7 +111,7 @@ private data class Tab(val id: String, val label: String, val on: ImageVector, v
 
 private val Tabs = listOf(
     Tab("files", "Files", Icons.Filled.Folder, Icons.Outlined.Folder),
-    Tab("music", "Music", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
+    Tab("audio", "Audio", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
     Tab("photos", "Photos", Icons.Filled.Photo, Icons.Outlined.Photo),
     Tab("more", "More", Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz),
 )
@@ -159,7 +159,7 @@ fun NimboApp(
     ) { pad ->
         // Back en otra pestaña vuelve a Archivos. Registrado antes que la
         // nube: sus handlers (player, visor, carpeta) ganan si están activos.
-        BackHandler(enabled = tab == "music" || tab == "photos") { tab = "files" }
+        BackHandler(enabled = tab == "audio" || tab == "photos") { tab = "files" }
         Box(Modifier.padding(pad).consumeWindowInsets(pad).fillMaxSize()) {
             TelegramRoute(tab = if (tab == "more") "files" else tab)
             if (tab == "more") {
