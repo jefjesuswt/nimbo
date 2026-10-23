@@ -381,6 +381,8 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         // Visible en la tarjeta de subidas de la app; su ✕ cancela el pase.
         val card = TgRepo.beginExternal(ctx.getString(R.string.backup_title), todo.map { it.first.name to it.first.size })
         var failed = 0
+        var uploaded = 0
+        var skipped = 0
         var bytes = 0L
         try {
             todo.forEachIndexed { i, (e, folder) ->
@@ -394,6 +396,7 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 val fp = if (there == null) Backup.fingerprintOf(ctx, e) else null
                 val dup = fp?.let { log.byFp(it) }
                 var mid: Long? = there?.messageId ?: dup
+                if (mid != null) skipped++
                 if (mid == null) {
                     mid = TgRepo.uploadForBackup(ctx, Uri.parse(e.uri), folder, e.name, e.size)
                     // Telegram pide esperar: hasta 2 min se espera aquí; más, que reintente WorkManager.
@@ -407,6 +410,7 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                         mid = TgRepo.uploadForBackup(ctx, Uri.parse(e.uri), folder, e.name, e.size)
                     }
                     delay(1000)
+                    if (mid != null) uploaded++
                 }
                 if (mid != null) log.mark(e, mid, fp) else {
                     failed++
@@ -420,7 +424,7 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         } finally {
             TgRepo.endExternal(card)
         }
-        Backup.log("pass done: failed=$failed")
+        Backup.log("pass done: uploaded=$uploaded skipped=$skipped failed=$failed")
         prefs.edit {
             putLong(BackupPrefs.LAST, System.currentTimeMillis())
             if (failed == 0) remove(BackupPrefs.ERROR)
