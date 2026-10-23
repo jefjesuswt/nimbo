@@ -7,9 +7,9 @@
 - [x] Tag `#nimbo/` con lectura de `#toolbox/` (compat con lo ya subido)
 - [x] Carátulas: solo embebidas o archivo canónico de la carpeta (fuera heurísticas por nombre/subcarpetas/padres y "Set as cover")
 - [x] Auditoría: base TDLib cifrada, `allowBackup=false`, FileProvider acotado, logs con nombres fuera, settings falsos fuera, datos personales fuera de docs/tests
-- [ ] Build + tests verdes en el Arch (`./gradlew testDebugUnitTest assembleDebug`)
+- [x] Build + tests verdes (compila en Windows con scoop: temurin17 + android-clt)
 - [ ] Verificar en celu: login nuevo (paquete distinto = sesión nueva), carpetas `#toolbox/` se ven, subir carpeta con cover.jpg y con arte embebido
-- [ ] Repo GitHub `nimbo` (privado) + push
+- [x] Repo GitHub `nimbo` (privado) + push
 - [ ] Decidir traductor: endpoint web de Google no oficial (hoy) vs ML Kit on-device vs API con key
 
 ## Pendiente heredado (spec 07)
