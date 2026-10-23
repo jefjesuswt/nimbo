@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nimbo: nube blanca con un play recortado (tu nube de archivos y música). Zona segura 66dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M40,53a14,14 0 1,0 28,0a14,14 0 1,0 -28,0z M31,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M59,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M40,59v9h28v-9z" />
+    <path
+        android:fillColor="#FF3A55C9"
+        android:pathData="M49.5,51L49.5,64L61,57.5z"
+        android:strokeColor="#FF3A55C9"
+        android:strokeWidth="2"
+        android:strokeLineJoin="round" />
+</vector>

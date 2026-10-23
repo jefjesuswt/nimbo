@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono temático (Android 13+): solo la nube. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M40,53a14,14 0 1,0 28,0a14,14 0 1,0 -28,0z M31,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M59,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M40,59v9h28v-9z" />
+</vector>
