@@ -33,3 +33,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Needs JDK 17 and the Android SDK (`ANDROID_HOME`, defaults to `~/Android/Sdk`).
+
+## License
+
+[MIT](LICENSE)
