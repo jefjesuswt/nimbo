@@ -20,19 +20,19 @@
 - [x] Búsqueda en topbar (todo el árbol, sin acentos, AND por palabras, en memoria)
 - [ ] Verificar landscape + búsqueda en celu
 - [x] i18n: en (base) + es neutro, pt-BR, fr, ja; selector de idioma en More (Android 13+) + Ajustes del sistema
-- [ ] Verificar idiomas en celu (tabs, player, login, plurales)
+- [x] Verificar idiomas en celu (tabs, player, login, plurales)
 - [ ] 7h2 Navegar/reproducir dentro de comprimidos (necesita volver a meter Commons Compress)
 - [ ] Antes de publicar: `applicationId` definitivo (único en Play), R8 con keep rules de TDLib
 
 ## Fase 1: Roadmap (specs 08-14)
 - [x] 08 Reproductor de vídeo propio (pantalla completa, gestos, velocidad, subtítulos .srt/.vtt, PiP)
-- [ ] 08 verificar en celu (mp4 grande, gestos, PiP, .srt) · [ ] streaming progresivo · [ ] pellizco/seek horizontal
+- [x] 08 verificar en celu (mp4 grande, gestos, PiP, .srt) · [ ] streaming progresivo · [ ] pellizco/seek horizontal
 - [x] 09a Continuar donde lo dejaste (posición por archivo, chip "empezar de cero")
 - [x] 09b Deshacer al borrar (5 s) · [ ] papelera 30 días (v2)
 - [x] 09c Deslizar para refrescar
 - [x] 09d Ordenar (nombre/fecha/tamaño/duración, asc/desc, por pestaña)
 - [ ] 09a barra de progreso en lista/grid para archivos empezados
-- [ ] Verificar 09a-d en celu
+- [x] Verificar 09a-d en celu
 - [ ] 10 Copia automática de la galería (estilo Google Fotos, WorkManager)
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
