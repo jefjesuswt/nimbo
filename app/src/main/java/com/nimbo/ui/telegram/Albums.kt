@@ -65,7 +65,7 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
         LazyVerticalGrid(
             columns = GridCells.Adaptive(160.dp),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 160.dp),
+            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -97,7 +97,7 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
             }
         }
     } else {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 160.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
             items(albums, key = { "a" + it.folder }) { a ->
                 Row(
                     Modifier.fillMaxWidth().clickable { onOpen(a.folder) }
