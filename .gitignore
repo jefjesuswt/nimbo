@@ -22,3 +22,6 @@ Thumbs.db
 
 # Prototipos HTML pesados (14MB) no van al repo
 *.html
+
+# Worktrees de Claude Code
+.claude/

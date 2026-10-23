@@ -110,4 +110,11 @@ class TelegramTest {
         assertEquals("movie.en.vtt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "en"))
         assertEquals(null, com.nimbo.ui.telegram.pickSubtitle("clip.mp4", names, "es"))
     }
+
+    @Test fun progress() {
+        assertEquals(0.25f, com.nimbo.ui.telegram.progressFrac(10 * 60_000L, 40 * 60), 0.001f)
+        assertEquals(0f, com.nimbo.ui.telegram.progressFrac(60_000L, 120), 0.001f)       // corto
+        assertEquals(0f, com.nimbo.ui.telegram.progressFrac(40 * 60_000L - 5_000, 40 * 60), 0.001f) // terminado
+        assertEquals(0f, com.nimbo.ui.telegram.progressFrac(60_000L, 0), 0.001f)         // sin duración
+    }
 }
