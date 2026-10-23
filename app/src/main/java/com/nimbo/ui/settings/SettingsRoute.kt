@@ -10,6 +10,7 @@ import com.nimbo.R
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -226,6 +227,9 @@ private fun TelegramGroup() {
     var apiId by remember { mutableStateOf(saved.first?.toString() ?: "") }
     var apiHash by remember { mutableStateOf(saved.second) }
     var err by remember { mutableStateOf(false) }
+    // Lo guardado: Save solo si se tocó algo; Forget solo si hay keys.
+    var stored by remember { mutableStateOf(apiId to apiHash) }
+    val dirty = (apiId to apiHash.trim()) != stored
     Group("Telegram") {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
             Text(
@@ -269,22 +273,29 @@ private fun TelegramGroup() {
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp)
             )
-            Row(Modifier.padding(top = 8.dp)) {
-                Button(onClick = {
-                    val id = com.nimbo.ui.telegram.parseApiId(apiId)
-                    if (id != null && apiHash.isNotBlank()) {
-                        err = false
-                        com.nimbo.ui.telegram.TgSecrets.save(ctx, id, apiHash)
-                        com.nimbo.ui.telegram.TgClient.start(ctx, id, apiHash.trim())
-                    } else err = true
-                }) { Text(stringResource(R.string.save)) }
-                Spacer(Modifier.width(8.dp))
-                TextButton(onClick = {
+            if (dirty || stored.first.isNotEmpty()) Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                if (stored.first.isNotEmpty()) TextButton(onClick = {
                     com.nimbo.ui.telegram.TgClient.logout()
                     com.nimbo.ui.telegram.TgSecrets.clear(ctx)
                     apiId = ""
                     apiHash = ""
+                    stored = "" to ""
                 }) { Text(stringResource(R.string.forget_logout)) }
+                if (dirty) {
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = {
+                        val id = com.nimbo.ui.telegram.parseApiId(apiId)
+                        if (id != null && apiHash.isNotBlank()) {
+                            err = false
+                            com.nimbo.ui.telegram.TgSecrets.save(ctx, id, apiHash)
+                            com.nimbo.ui.telegram.TgClient.start(ctx, id, apiHash.trim())
+                            stored = apiId to apiHash.trim()
+                        } else err = true
+                    }) { Text(stringResource(R.string.save)) }
+                }
             }
         }
     }
