@@ -18,9 +18,22 @@ android {
         // TDLib trae .so x4 ABIs: solo arm64 (celu). Emulador x86_64 → añadir aquí.
         ndk { abiFilters += listOf("arm64-v8a") }
     }
+    // Firma release: clave y contraseña en ~/.gradle/gradle.properties
+    // (NIMBO_KEYSTORE, NIMBO_KEYSTORE_PASSWORD), nunca en el repo.
+    // Sin ellas, el release sale sin firmar.
+    val ks = providers.gradleProperty("NIMBO_KEYSTORE").orNull
+    signingConfigs {
+        if (ks != null) create("release") {
+            storeFile = file(ks)
+            storePassword = providers.gradleProperty("NIMBO_KEYSTORE_PASSWORD").get()
+            keyAlias = "nimbo"
+            keyPassword = storePassword
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (ks != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
