@@ -4,9 +4,32 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.displayCutoutPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Photo
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Text
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -15,9 +38,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.nimbo.ui.settings.SettingsPrefs
 import com.nimbo.ui.settings.SettingsRoute
 import com.nimbo.ui.settings.darkThemeFor
@@ -87,7 +107,18 @@ fun NimboRoot() {
     }
 }
 
-// Una sola pantalla (la nube) + ajustes: sin NavigationBar.
+private data class Tab(val id: String, val label: String, val on: ImageVector, val off: ImageVector)
+
+private val Tabs = listOf(
+    Tab("files", "Files", Icons.Filled.Folder, Icons.Outlined.Folder),
+    Tab("music", "Music", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
+    Tab("photos", "Photos", Icons.Filled.Photo, Icons.Outlined.Photo),
+    Tab("more", "More", Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz),
+)
+
+// Estilo Mihon: topbar con título de la pestaña + navbar abajo.
+// La nube queda siempre compuesta (conserva carpeta, player, subidas);
+// "Más" (ajustes) va encima.
 @Composable
 fun NimboApp(
     themeMode: String,
@@ -97,37 +128,52 @@ fun NimboApp(
     onSeed: (String) -> Unit,
     onDynamic: (Boolean) -> Unit
 ) {
-    val nav = rememberNavController()
+    var tab by rememberSaveable { mutableStateOf("files") }
     Scaffold(
+        // Arriba y a los lados: barra de estado + notch en uno (sin sumar dos
+        // veces). Abajo manda la navbar.
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         bottomBar = {
-            // El visor de fotos esconde la minibar. Sin navbar, el inset
-            // del sistema lo consume esta columna (las pantallas lo asumen).
+            // El visor de fotos esconde minibar + navbar.
             if (!ViewerNav.open) {
-                Column(Modifier.navigationBarsPadding()) {
+                Column {
                     MiniPlayer(onOpenSheet = {
-                        nav.popBackStack("cloud", inclusive = false)
+                        if (tab == "more") tab = "files"
                         PlayerNav.pending = true
                         PlayerNav.openSheet?.invoke()
                     })
+                    NavigationBar {
+                        Tabs.forEach { t ->
+                            val sel = tab == t.id
+                            NavigationBarItem(
+                                selected = sel,
+                                onClick = { tab = t.id },
+                                icon = { Icon(if (sel) t.on else t.off, contentDescription = null) },
+                                label = { Text(t.label) }
+                            )
+                        }
+                    }
                 }
             }
         }
     ) { pad ->
-        // Horizontal: el notch queda a un lado, no tapa contenido.
-        NavHost(nav, startDestination = "cloud", Modifier.padding(pad).displayCutoutPadding()) {
-            composable("cloud") {
-                TelegramRoute(onSettings = { nav.navigate("settings") })
-            }
-            composable("settings") {
-                SettingsRoute(
-                    onBack = { nav.popBackStack() },
-                    themeMode = themeMode,
-                    seed = seed,
-                    dynamic = dynamic,
-                    onThemeMode = onThemeMode,
-                    onSeed = onSeed,
-                    onDynamic = onDynamic
-                )
+        // Back en otra pestaña vuelve a Archivos. Registrado antes que la
+        // nube: sus handlers (player, visor, carpeta) ganan si están activos.
+        BackHandler(enabled = tab == "music" || tab == "photos") { tab = "files" }
+        Box(Modifier.padding(pad).consumeWindowInsets(pad).fillMaxSize()) {
+            TelegramRoute(tab = if (tab == "more") "files" else tab)
+            if (tab == "more") {
+                BackHandler { tab = "files" }
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+                    SettingsRoute(
+                        themeMode = themeMode,
+                        seed = seed,
+                        dynamic = dynamic,
+                        onThemeMode = onThemeMode,
+                        onSeed = onSeed,
+                        onDynamic = onDynamic
+                    )
+                }
             }
         }
     }

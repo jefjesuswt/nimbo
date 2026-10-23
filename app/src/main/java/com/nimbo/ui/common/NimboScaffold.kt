@@ -44,17 +44,12 @@ fun NimboScaffold(
         },
         floatingActionButton = {
             if (floatingActionButton != null) {
-                // Scaffold suma FabSpacing + inset inferior, pero ese inset ya viene
-                // descontado por el pad del padre → se baja lo mismo para quedar a 16dp.
-                // Ojo: offset Y positivo = hacia abajo.
-                val sysBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+                // Insets ya consumidos por el contenedor: el FAB queda a 16dp.
                 AnimatedVisibility(
                     visible = fabOn,
                     enter = fadeIn() + scaleIn(),
                     exit = fadeOut() + scaleOut()
-                ) {
-                    Box(Modifier.offset(y = sysBottom)) { floatingActionButton() }
-                }
+                ) { floatingActionButton() }
             }
         }
     ) { pad ->

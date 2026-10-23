@@ -124,17 +124,6 @@ fun childrenOf(files: List<TgFile>, dir: String, extra: Set<String> = emptySet()
 fun parentOf(dir: String): String =
     if ('/' in dir) dir.substringBeforeLast('/') else ""
 
-// Arte de carpeta: primer audio con thumb, si no primer audio (dispara su
-// fetch). Pura, testeable.
-fun folderArtAudio(files: List<TgFile>, dir: String): TgFile? {
-    val prefix = if (dir.isEmpty()) "" else "$dir/"
-    val inDir = files.filter {
-        it.kind == TgKind.AUDIO &&
-            (it.folder == dir || (dir.isNotEmpty() && it.folder.startsWith(prefix)))
-    }
-    return inDir.firstOrNull { it.thumbFileId != 0 } ?: inDir.firstOrNull()
-}
-
 fun countRecursive(files: List<TgFile>, dir: String): Int {
     if (dir.isEmpty()) return files.size
     val prefix = "$dir/"

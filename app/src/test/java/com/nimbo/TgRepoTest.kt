@@ -18,7 +18,6 @@ import com.nimbo.ui.telegram.isKeepMark
 import com.nimbo.ui.telegram.parseCoverName
 import com.nimbo.ui.telegram.TgGenTag
 import com.nimbo.ui.telegram.tagCoverName
-import com.nimbo.ui.telegram.folderArtAudio
 import com.nimbo.ui.telegram.isCoverName
 import com.nimbo.ui.telegram.isFolderCover
 import com.nimbo.ui.telegram.parentOf
@@ -333,17 +332,6 @@ class TgRepoTest {
             setOf("docs", "music", "music/rock", "void"),
             com.nimbo.ui.telegram.allFolders(listOf(a, b), setOf("void"))
         )
-    }
-
-    @Test fun folderArt() {
-        val noThumb = com.nimbo.ui.telegram.TgFile("a", "x.mp3", TgKind.AUDIO, "", folder = "m")
-        val withThumb = com.nimbo.ui.telegram.TgFile("b", "y.mp3", TgKind.AUDIO, "", folder = "m", thumbFileId = 5)
-        val other = com.nimbo.ui.telegram.TgFile("c", "z.pdf", TgKind.DOC, "", folder = "m")
-        val items = listOf(noThumb, other, withThumb)
-        assertEquals("b", com.nimbo.ui.telegram.folderArtAudio(items, "m")?.id)
-        assertEquals("a", com.nimbo.ui.telegram.folderArtAudio(listOf(noThumb), "m")?.id)
-        assertEquals(null, com.nimbo.ui.telegram.folderArtAudio(items, "void"))
-        assertEquals(null, com.nimbo.ui.telegram.folderArtAudio(listOf(other), "m"))
     }
 
     @Test fun coverHash() {

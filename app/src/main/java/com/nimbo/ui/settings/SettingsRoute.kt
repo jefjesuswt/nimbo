@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInNew
@@ -56,7 +55,6 @@ import com.nimbo.ui.common.NimboScaffold
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsRoute(
-    onBack: () -> Unit,
     themeMode: String,
     seed: String,
     dynamic: Boolean,
@@ -71,8 +69,7 @@ fun SettingsRoute(
     val cs = MaterialTheme.colorScheme
 
     NimboScaffold(
-        title = "Settings",
-        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back") } }
+        title = "More"
     ) {
         LazyColumn(
             Modifier.fillMaxSize(),

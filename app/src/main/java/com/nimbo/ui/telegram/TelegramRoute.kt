@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.AssistChip
@@ -129,7 +130,7 @@ import kotlinx.coroutines.launch
 // archivos aún mock hasta 7b.
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TelegramRoute(onSettings: () -> Unit) {
+fun TelegramRoute(tab: String = "files") {
     // -1 keys, 0 login, 1 code, 2 files, 3 password 2FA. Auth TDLib manda.
     var view by remember { mutableIntStateOf(-1) }
     val ctx = LocalContext.current
@@ -161,6 +162,16 @@ fun TelegramRoute(onSettings: () -> Unit) {
     var grid by remember { mutableStateOf(false) }
     // Nube real (7b): repo manda, mock fuera.
     val cloud by TgRepo.files.collectAsState()
+    // Música: todos los audios por carpeta y título. Fotos: imágenes y vídeos, recientes primero.
+    val tabList = remember(cloud, tab) {
+        when (tab) {
+            "music" -> cloud.filter { it.kind == TgKind.AUDIO }
+                .sortedWith(compareBy({ it.folder.lowercase() }, { it.showTitle().lowercase() }))
+            "photos" -> cloud.filter { it.kind == TgKind.IMAGE || it.kind == TgKind.VIDEO }
+                .sortedByDescending { it.dateSec }
+            else -> null
+        }
+    }
     val keeps by TgRepo.keeps.collectAsState()
     val syncing by TgRepo.loading.collectAsState()
     // Carpeta actual 7f ("music/rock", "" = raíz).
@@ -215,6 +226,8 @@ fun TelegramRoute(onSettings: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled = selection.isNotEmpty()) { selection = emptySet() }
     // Búsqueda (lupa del topbar): filtra todo el árbol mientras escribes.
     var searching by remember { mutableStateOf(false) }
+    var filterSheet by remember { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     fun closeSearch() {
         searching = false
@@ -313,7 +326,11 @@ fun TelegramRoute(onSettings: () -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
     NimboScaffold(
-        title = "Nimbo",
+        title = if (view != 2) "Nimbo" else when (tab) {
+            "music" -> "Music"
+            "photos" -> "Photos"
+            else -> "Files"
+        },
         snack = snack,
         actions = {
             if (selection.isNotEmpty()) {
@@ -352,13 +369,31 @@ fun TelegramRoute(onSettings: () -> Unit) {
                 }
                 if (view == 2 && !searching) {
                     IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, "Search") }
+                    if (tab != "photos") {
+                        IconButton(onClick = { filterSheet = true }) {
+                            Icon(Icons.Filled.FilterList, "Filter and display")
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { overflow = true }) { Icon(Icons.Filled.MoreVert, "More options") }
+                        androidx.compose.material3.DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                            if (tab == "files") androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("New folder") },
+                                leadingIcon = { Icon(Icons.Filled.CreateNewFolder, null) },
+                                onClick = { overflow = false; newFolder = true }
+                            )
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Refresh") },
+                                leadingIcon = { Icon(Icons.Filled.Refresh, null) },
+                                onClick = { overflow = false; TgRepo.refresh() }
+                            )
+                        }
+                    }
                 }
-                IconButton(onClick = { newFolder = true }) { Icon(Icons.Filled.CreateNewFolder, "New folder") }
-                IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, "Settings") }
             }
         },
         floatingActionButton = {
-            if (view == 2) {
+            if (view == 2 && tab == "files") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FloatingActionButton(
                         onClick = { pickFolder.launch(null) },
@@ -482,17 +517,18 @@ fun TelegramRoute(onSettings: () -> Unit) {
                     Box(Modifier.weight(1f)) {
                     FilesView(
                     all = cloud,
-                    filter = filter,
+                    flat = tabList,
+                    compact = tab == "photos",
+                    filter = if (tab == "files") filter else "all",
                     dir = dir,
                     // Abrir carpeta desde la búsqueda: navega y cierra la búsqueda.
                     onDir = { dir = it; closeSearch() },
                     query = query,
                     onFilter = { filter = it },
-                    grid = grid,
+                    grid = grid || tab == "photos",
                     onGrid = { grid = it },
                     // Sin parpadeo: con lotes activos la card ya muestra progreso.
                     syncing = syncing && batches.isEmpty(),
-                    onRefresh = { TgRepo.refresh() },
                     onPlay = { f ->
                         if (f.kind == TgKind.AUDIO || f.kind == TgKind.VIDEO) playFile(f)
                         else if (f.kind == TgKind.DOC && isTextFile(f.name)) textFile = f
@@ -512,7 +548,7 @@ fun TelegramRoute(onSettings: () -> Unit) {
                                 // la raíz del disco y todas sus subcarpetas vecinas.
                                 val album = if ('/' in dir) dir.substringBefore('/') else dir
                                 val prefix = "$album/"
-                                val list = cloud.filter {
+                                val list = if (tab == "photos") tabList.orEmpty().filter { it.kind == TgKind.IMAGE } else cloud.filter {
                                     it.kind == TgKind.IMAGE &&
                                         (it.folder == album || (album.isNotEmpty() && it.folder.startsWith(prefix)))
                                 }
@@ -555,6 +591,31 @@ fun TelegramRoute(onSettings: () -> Unit) {
                     onMsg = { m -> scope.launch { snack.showSnackbar(m) } },
                     onDownload = { TgRepo.downloadFolder(ctx, d) { _ -> } }
                 )
+            }
+            if (filterSheet) {
+                ModalBottomSheet(onDismissRequest = { filterSheet = false }) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (tab == "files") {
+                            Text("Show", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
+                            FilterChipRow(
+                                options = listOf("all" to "All", "audio" to "Audio", "media" to "Media", "other" to "Files"),
+                                selected = filter,
+                                onSelect = { filter = it }
+                            )
+                        }
+                        Text("Display", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
+                        Box(Modifier.padding(horizontal = 16.dp)) { ViewToggle(grid = grid, onGrid = { grid = it }) }
+                        Text(
+                            tgStats(cloud),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
             }
             // Sheet global: se abre desde el minibar (PlayerNav).
             androidx.compose.runtime.DisposableEffect(Unit) {
@@ -784,39 +845,18 @@ private fun BatchDetail(b: TgRepo.BatchUi, onClose: () -> Unit) {
     }
 }
 
-// Subheader sticky (toggle + chip + filtros) con fondo surface:
-// los items pasan por debajo sin verse feo.
+// Subheader sticky: breadcrumb + barra de sync, con fondo surface
+// (los items pasan por debajo). Filtros y vista viven en la hoja ⚲.
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SubHeader(
-    stats: String,
     syncing: Boolean,
-    filter: String,
-    onFilter: (String) -> Unit,
-    grid: Boolean,
-    onGrid: (Boolean) -> Unit,
-    onRefresh: () -> Unit,
     dir: String,
     onDir: (String) -> Unit,
     showCrumb: Boolean
 ) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().background(cs.surface)) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ViewToggle(grid = grid, onGrid = onGrid)
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onRefresh) {
-                Icon(Icons.Filled.Refresh, "Refresh", tint = cs.onSurfaceVariant)
-            }
-            AssistChip(
-                onClick = {},
-                label = { Text(stats) },
-                leadingIcon = { Icon(Icons.Filled.Cloud, null, modifier = Modifier.size(18.dp)) }
-            )
-        }
         // Breadcrumb 7f: raíz + segmentos clicables.
         if (showCrumb) {
             Row(
@@ -837,11 +877,6 @@ private fun SubHeader(
                 }
             }
         }
-        FilterChipRow(
-            options = listOf("all" to "All", "audio" to "Audio", "media" to "Media", "other" to "Files"),
-            selected = filter,
-            onSelect = onFilter
-        )
         if (syncing) LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }
@@ -1094,36 +1129,44 @@ private fun FilesView(
     playing: Boolean,
     playP: Float = 0f,
     syncing: Boolean = false,
-    onRefresh: () -> Unit = {},
     keeps: Set<String> = emptySet(),
     selection: Set<String> = emptySet(),
     onToggle: (TgFile) -> Unit = {},
-    query: String = ""
+    query: String = "",
+    // Música / Fotos: lista plana sin carpetas; compact = galería densa sin pie.
+    flat: List<TgFile>? = null,
+    compact: Boolean = false
 ) {
     val cs = MaterialTheme.colorScheme
     // Búsqueda: claves normalizadas una vez por cambio de nube, no por tecla.
     val terms = remember(query) { searchTerms(query) }
     val searching = terms.isNotEmpty()
-    val keyed = remember(all) { all.map { it to searchKey(it) } }
+    val base = flat ?: all
+    val keyed = remember(base) { base.map { it to searchKey(it) } }
     val folderKeyed = remember(all, keeps) {
         allFolders(all, keeps).map { it to normSearch(it.substringAfterLast('/')) }
     }
     // 7f: carpetas primero (rutas completas), luego archivos con filtro.
     // Buscando: todo el árbol, no solo el dir actual.
     val (subNames, own) = childrenOf(all, dir, keeps)
-    val subs = if (searching) searchIn(folderKeyed, terms)
+    val subs = if (flat != null) emptyList()
+        else if (searching) searchIn(folderKeyed, terms)
         else subNames.map { if (dir.isEmpty()) it else "$dir/$it" }
-    val files = filterTgFiles(if (searching) searchIn(keyed, terms) else own, filter)
+    val files = filterTgFiles(if (searching) searchIn(keyed, terms) else flat ?: own, filter)
     val showCrumb = dir.isNotEmpty() || subs.isNotEmpty()
     fun label(path: String) = if (searching) path else path.substringAfterLast('/')
     fun meta(f: TgFile) = if (searching && f.folder.isNotEmpty()) "${f.folder} · ${f.meta}" else f.meta
     if (subs.isEmpty() && files.isEmpty()) {
         Column(Modifier.fillMaxWidth()) {
-            SubHeader(tgStats(all), syncing, filter, onFilter, grid, onGrid, onRefresh, dir, onDir, showCrumb)
+            SubHeader(syncing, dir, onDir, showCrumb && flat == null)
             if (searching) EmptyState(
                 icon = Icons.Filled.Search,
                 title = "No results",
                 body = "Nothing matches \"$query\"."
+            ) else if (flat != null) EmptyState(
+                icon = Icons.Filled.CloudUpload,
+                title = "Nothing here yet",
+                body = "Upload from the Files tab."
             ) else EmptyState(
                 icon = Icons.Filled.CloudUpload,
                 title = "Your cloud is empty",
@@ -1138,12 +1181,11 @@ private fun FilesView(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 160.dp)
         ) {
-            stickyHeader { SubHeader(tgStats(all), syncing, filter, onFilter, grid, onGrid, onRefresh, dir, onDir, showCrumb) }
+            stickyHeader { SubHeader(syncing, dir, onDir, showCrumb && flat == null) }
             items(subs, key = { "d$it" }) { s ->
                 FolderRow(
                     name = label(s),
                     count = countRecursive(all, s),
-                    art = remember(all, s) { folderArtAudio(all, s) },
                     onOpen = { onDir(s) },
                     onManage = { onManageDir(s) }
                 )
@@ -1237,17 +1279,17 @@ private fun FilesView(
             // Grid sin stickyHeader en foundation 1.7: header fijo arriba
             // (siempre visible = sticky efectivo) + grid scrolleable.
             Column(Modifier.fillMaxSize()) {
-                SubHeader(tgStats(all), syncing, filter, onFilter, grid, onGrid, onRefresh, dir, onDir, showCrumb)
+                SubHeader(syncing, dir, onDir, showCrumb && flat == null)
                 val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
                 LaunchedEffect(dir, query) { gridState.scrollToItem(0) }
                 // Adaptive: 2 columnas en vertical, 4-5 en horizontal.
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Adaptive(160.dp),
+                    columns = GridCells.Adaptive(if (compact) 110.dp else 160.dp),
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 160.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp)
             ) {
                 items(subs, key = { "d$it" }) { s ->
                     val path = s
@@ -1263,12 +1305,8 @@ private fun FilesView(
                             Modifier.fillMaxWidth().aspectRatio(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            val bmp = folderArt(remember(all, path) { folderArtAudio(all, path) })
-                            if (bmp != null) {
-                                Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            } else {
-                                Icon(Icons.Filled.Folder, null, modifier = Modifier.size(48.dp), tint = cs.onSecondaryContainer)
-                            }
+                            // Carpetas sin carátula: solo icono.
+                            Icon(Icons.Filled.Folder, null, modifier = Modifier.size(48.dp), tint = cs.onSecondaryContainer)
                             // Badge carpeta: que se lea como carpeta, no archivo.
                             Box(
                                 Modifier.align(Alignment.BottomStart).padding(8.dp)
@@ -1360,7 +1398,7 @@ private fun FilesView(
                                 }
                             }
                         }
-                        Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
+                        if (!compact) Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
                             Column(Modifier.weight(1f)) {
                                 // minLines = 2 fija altura: cards uniformes aunque título corte.
                                 Text(f.showTitle(), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
@@ -1377,31 +1415,11 @@ private fun FilesView(
     }
 }
 
-// Arte de carpeta 7f: cover del primer audio con thumb (o dispara fetch
-// del primero). Un solo uso, queda aquí.
-@Composable
-private fun folderArt(rep: TgFile?): androidx.compose.ui.graphics.ImageBitmap? {
-    if (rep == null) return null
-    val thumbs by TgThumbs.maps.collectAsState()
-    val covers by TgCovers.covers.collectAsState()
-    val bmp = thumbs[rep.thumbFileId]
-        ?: rep.coverHash.takeIf { it.isNotEmpty() }?.let { covers[it] }
-        ?: remember(rep.id) {
-            rep.thumbMini.takeIf { it.isNotEmpty() }?.let(TgThumbs::mini)
-        }
-    LaunchedEffect(rep.thumbFileId) { TgThumbs.fetch(rep.thumbFileId) }
-    LaunchedEffect(rep.messageId, rep.coverHash) {
-        TgCovers.fetch(rep, TgRepo::noteCover)
-    }
-    return bmp
-}
-
 // Fila carpeta 7f: entra al dir. Un solo uso, queda aquí.
 @Composable
 private fun FolderRow(
     name: String,
     count: Int,
-    art: TgFile?,
     onOpen: () -> Unit,
     onManage: () -> Unit = {}
 ) {
@@ -1411,12 +1429,7 @@ private fun FolderRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val bmp = folderArt(art)
-        if (bmp != null) {
-            Image(bmp, null, Modifier.size(40.dp).clip(CircleShape), contentScale = ContentScale.Crop)
-        } else {
-            LeadingCircle(Icons.Filled.Folder)
-        }
+        LeadingCircle(Icons.Filled.Folder)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
