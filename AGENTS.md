@@ -26,6 +26,11 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 - Arquitectura: ADR en `docs/adr/`, trabajo por `specs/0N-*.md`.
 - TDD en lógica pura: `app/src/main/.../*.kt` + `app/src/test/.../*Test.kt` (JUnit + kotlin-test).
 
+## Releases
+- CHANGELOG.md (Keep a Changelog, en inglés): lo nuevo va en [Unreleased]; al publicar se pasa a [x.y.z] - fecha.
+- Subir versionName (semver) y versionCode (+1) en app/build.gradle.kts; tag vX.Y.Z; gh release create con el APK release y la sección del CHANGELOG como notas.
+- Firma: NIMBO_KEYSTORE / NIMBO_KEYSTORE_PASSWORD en ~/.gradle/gradle.properties (nunca en el repo). Sin esa clave no se pueden publicar actualizaciones instalables encima.
+
 ## Formato en la nube (contrato, no romper)
 - Carpeta: `#nimbo/<ruta>` en el caption. Se lee también `#toolbox/<ruta>` (subidas viejas); el retag migra a `#nimbo/`.
 - Audio: `#tgmeta <seg>s "título" "artista"`. Cover de carpeta: `#tgcover *` (+ `#tggen` si salió del arte embebido, + `#tgname "cover.jpg"` si era archivo). Carpeta vacía: texto `#tgkeep`. Traducción guardada: `#tgtrans`.

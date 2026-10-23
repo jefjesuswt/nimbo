@@ -16,6 +16,10 @@ Not affiliated with Telegram.
 - Album art comes from the audio's embedded picture or from a `cover.jpg` /
   `folder.png` (and similar) in the same folder.
 
+## Download
+
+Grab the latest APK from [Releases](https://github.com/jefjesuswt/nimbo/releases). See [CHANGELOG.md](CHANGELOG.md) for what changed.
+
 ## Setup
 
 1. Create an `api_id` / `api_hash` at <https://my.telegram.org> → API development tools.
