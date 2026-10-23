@@ -1,5 +1,9 @@
 package com.nimbo.ui.telegram
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
@@ -83,6 +87,7 @@ fun PhotoViewer(
     onMsg: (String) -> Unit
 ) {
     val ctx = LocalContext.current
+    val res = LocalResources.current
     val scope = rememberCoroutineScope()
     var idx by remember(startIndex) { mutableStateOf(startIndex.coerceIn(files.indices)) }
     val cur = idx.coerceIn(files.indices)
@@ -121,10 +126,10 @@ fun PhotoViewer(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { grid = false }) {
-                        Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White)
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White)
                     }
                     Text(
-                        "${files.size} photos",
+                        pluralStringResource(R.plurals.photos_count, files.size, files.size),
                         color = Color.White,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -179,7 +184,7 @@ fun PhotoViewer(
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, "Close", tint = Color.White) }
+                IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, stringResource(R.string.close), tint = Color.White) }
                 Column(Modifier.weight(1f)) {
                     Text(
                         files.getOrNull(cur)?.showTitle().orEmpty(),
@@ -189,30 +194,30 @@ fun PhotoViewer(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        "${cur + 1} of ${files.size}",
+                        stringResource(R.string.position, cur + 1, files.size),
                         color = Color.White.copy(alpha = 0.72f),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 IconButton(onClick = { grid = true }) {
-                    Icon(Icons.Filled.GridView, "Gallery", tint = Color.White)
+                    Icon(Icons.Filled.GridView, stringResource(R.string.gallery), tint = Color.White)
                 }
                 IconButton(onClick = {
                     files.getOrNull(cur)?.let { f ->
                         scope.launch {
                             val path = withContext(Dispatchers.IO) { TgDownload.awaitFile(f.fileId, 60_000) }
-                            if (path == null) onMsg("Download failed")
+                            if (path == null) onMsg(res.getString(R.string.download_failed))
                             else shareImage(ctx, path, f.name)
                         }
                     }
-                }) { Icon(Icons.Filled.Share, "Share", tint = Color.White) }
+                }) { Icon(Icons.Filled.Share, stringResource(R.string.share), tint = Color.White) }
                 IconButton(onClick = {
                     files.getOrNull(cur)?.let { f ->
                         TgRepo.download(ctx, f) { ok ->
-                            onMsg(if (ok) "Saved to Download/Nimbo" else "Download failed")
+                            onMsg(if (ok) res.getString(R.string.saved_to_downloads) else res.getString(R.string.download_failed))
                         }
                     }
-                }) { Icon(Icons.Filled.Download, "Download", tint = Color.White) }
+                }) { Icon(Icons.Filled.Download, stringResource(R.string.download), tint = Color.White) }
             }
             androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
             if (files.size > 1 && tier < 2) {

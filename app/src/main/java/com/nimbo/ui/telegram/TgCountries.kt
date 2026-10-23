@@ -1,36 +1,41 @@
 package com.nimbo.ui.telegram
 
 // Prefijos telefónicos. Sin lib externa: lista corta, suficiente.
-data class TgCountry(val name: String, val dial: String)
+// Nombre traducido por el sistema a partir del código ISO.
+data class TgCountry(val iso: String, val dial: String) {
+    val name: String get() = java.util.Locale("", iso).displayCountry
+}
 
 val TgCountries = listOf(
-    TgCountry("Argentina", "54"),
-    TgCountry("Bolivia", "591"),
-    TgCountry("Brasil", "55"),
-    TgCountry("Chile", "56"),
-    TgCountry("Colombia", "57"),
-    TgCountry("Costa Rica", "506"),
-    TgCountry("Cuba", "53"),
-    TgCountry("Ecuador", "593"),
-    TgCountry("El Salvador", "503"),
-    TgCountry("España", "34"),
-    TgCountry("Estados Unidos", "1"),
-    TgCountry("Guatemala", "502"),
-    TgCountry("Honduras", "504"),
-    TgCountry("México", "52"),
-    TgCountry("Nicaragua", "505"),
-    TgCountry("Panamá", "507"),
-    TgCountry("Paraguay", "595"),
-    TgCountry("Perú", "51"),
-    TgCountry("Portugal", "351"),
-    TgCountry("Puerto Rico", "1"),
-    TgCountry("Reino Unido", "44"),
-    TgCountry("República Dominicana", "1"),
-    TgCountry("Uruguay", "598"),
-    TgCountry("Venezuela", "58")
+    TgCountry("AR", "54"),
+    TgCountry("BO", "591"),
+    TgCountry("BR", "55"),
+    TgCountry("CL", "56"),
+    TgCountry("CO", "57"),
+    TgCountry("CR", "506"),
+    TgCountry("CU", "53"),
+    TgCountry("EC", "593"),
+    TgCountry("SV", "503"),
+    TgCountry("ES", "34"),
+    TgCountry("US", "1"),
+    TgCountry("FR", "33"),
+    TgCountry("GT", "502"),
+    TgCountry("HN", "504"),
+    TgCountry("JP", "81"),
+    TgCountry("MX", "52"),
+    TgCountry("NI", "505"),
+    TgCountry("PA", "507"),
+    TgCountry("PY", "595"),
+    TgCountry("PE", "51"),
+    TgCountry("PT", "351"),
+    TgCountry("PR", "1"),
+    TgCountry("GB", "44"),
+    TgCountry("DO", "1"),
+    TgCountry("UY", "598"),
+    TgCountry("VE", "58")
 )
 
-fun defaultCountry(): TgCountry = TgCountries.first { it.name == "España" }
+fun defaultCountry(): TgCountry = TgCountries.first { it.iso == "ES" }
 
 // Normaliza a formato internacional: prefijo + dígitos sin ceros troncales.
 fun fullPhone(dial: String, phone: String): String =

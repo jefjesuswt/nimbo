@@ -1,5 +1,8 @@
 package com.nimbo.ui.telegram
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +61,7 @@ import java.util.Locale
 @Composable
 fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
     val ctx = LocalContext.current
+    val rs = LocalResources.current
     val cs = MaterialTheme.colorScheme
     var text by remember(f.messageId) { mutableStateOf<String?>(null) }
     var enc by remember(f.messageId) { mutableStateOf("") }
@@ -87,7 +91,8 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
             }
         }
     }
-    val pairLabel = "${langName(src)} → ${langName(tgt)}"
+    val auto = stringResource(R.string.lang_auto)
+    val pairLabel = "${langName(src, auto)} → ${langName(tgt, auto)}"
 
     LaunchedEffect(f.messageId) {
         if (f.sizeBytes > 2L * 1024 * 1024) {
@@ -102,7 +107,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
             }.getOrNull()
         }
         if (res == null && !tooBig) {
-            onMsg("Could not open text")
+            onMsg(rs.getString(R.string.could_not_open_text))
         } else if (res != null) {
             text = res.first
             enc = res.second
@@ -112,7 +117,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
     fun doTranslate(s: String, t: String) {
         val orig = text ?: return
         if (orig.isBlank()) {
-            onMsg("Nothing to translate")
+            onMsg(rs.getString(R.string.nothing_to_translate))
             return
         }
         working = true
@@ -121,7 +126,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
         TgCloudTranslate.translate(orig, s, t) { out ->
             working = false
             if (out == null) {
-                onMsg("Translation failed")
+                onMsg(rs.getString(R.string.translation_failed))
                 tab = 0
             } else {
                 translated = out
@@ -134,7 +139,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
             Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, "Close") }
+            IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, stringResource(R.string.close)) }
             Column(Modifier.weight(1f)) {
                 Text(f.showTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -145,20 +150,20 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
             IconButton(onClick = { langs = true }) { Icon(Icons.Filled.Translate, pairLabel) }
             IconButton(onClick = {
                 TgRepo.download(ctx, f) { ok ->
-                    onMsg(if (ok) "Saved to Download/Nimbo" else "Download failed")
+                    onMsg(if (ok) rs.getString(R.string.saved_to_downloads) else rs.getString(R.string.download_failed))
                 }
-            }) { Icon(Icons.Filled.Download, "Download") }
+            }) { Icon(Icons.Filled.Download, stringResource(R.string.download)) }
         }
         when {
             tooBig -> Text(
-                "Too large to preview — download it.",
+                stringResource(R.string.too_large),
                 style = MaterialTheme.typography.bodyMedium,
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp)
             )
             working -> Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(
-                    "Translating $pairLabel…",
+                    stringResource(R.string.translating, pairLabel),
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onSurfaceVariant
                 )
@@ -205,7 +210,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
                 val cur = translated
                 if (cur != null) {
                     TgRepo.saveTranslation(f, tgt, cur) { ok ->
-                        onMsg(if (ok) "Saved ${siblingName(f.name, tgt)}" else "Save failed")
+                        onMsg(if (ok) rs.getString(R.string.saved_name, siblingName(f.name, tgt)) else rs.getString(R.string.save_failed))
                     }
                 }
                 langs = false
@@ -219,9 +224,10 @@ private fun systemLang(): String {
     return if (tag in TgCloudTranslate.Langs) tag else "es"
 }
 
-private fun langName(tag: String): String =
-    if (tag == "auto") "Auto"
-    else Locale.forLanguageTag(tag).getDisplayLanguage(Locale.ENGLISH)
+// Nombre del idioma en el idioma de la app; "auto" lo pone la UI.
+private fun langName(tag: String, auto: String): String =
+    if (tag == "auto") auto
+    else Locale.forLanguageTag(tag).getDisplayLanguage(Locale.getDefault())
         .replaceFirstChar { it.uppercase() }.ifEmpty { tag }
 
 // Modal del botón traducir: pestañas Languages / View / Save.
@@ -241,23 +247,23 @@ private fun TranslateModal(
     var page by remember { mutableStateOf(0) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Translate") },
+        title = { Text(stringResource(R.string.translate)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TabRow(selectedTabIndex = page) {
-                    listOf("Languages", "View", "Save").forEachIndexed { i, l ->
+                    listOf(stringResource(R.string.tr_languages), stringResource(R.string.tr_view), stringResource(R.string.save)).forEachIndexed { i, l ->
                         Tab(selected = page == i, onClick = { page = i }, text = { Text(l) })
                     }
                 }
                 when (page) {
                     0 -> {
-                        Text("From", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.tr_from), style = MaterialTheme.typography.labelMedium)
                         LangSelect(listOf("auto") + TgCloudTranslate.Langs, s) { s = it }
-                        Text("To", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.tr_to), style = MaterialTheme.typography.labelMedium)
                         LangSelect(TgCloudTranslate.Langs, t) { t = it }
                     }
                     1 -> {
-                        listOf("Original", "Translated").forEachIndexed { i, l ->
+                        listOf(stringResource(R.string.tr_original), stringResource(R.string.tr_translated)).forEachIndexed { i, l ->
                             Row(
                                 Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
                                     .clickable { onView(i) }
@@ -266,7 +272,7 @@ private fun TranslateModal(
                             ) {
                                 RadioButton(selected = tab == i, onClick = { onView(i) })
                                 Text(
-                                    l + if (i == 1 && !hasTranslation) " (translate now)" else "",
+                                    if (i == 1 && !hasTranslation) stringResource(R.string.tr_translate_now, l) else l,
                                     Modifier.padding(start = 8.dp)
                                 )
                             }
@@ -274,12 +280,12 @@ private fun TranslateModal(
                     }
                     2 -> {
                         Text(
-                            if (savedName != null) "Saved as $savedName" else "Not saved yet",
+                            if (savedName != null) stringResource(R.string.tr_saved_as, savedName) else stringResource(R.string.tr_not_saved),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            "Saves a sibling file (05_x.es.txt) next to the original.",
+                            stringResource(R.string.tr_sibling_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -289,38 +295,39 @@ private fun TranslateModal(
         },
         confirmButton = {
             when (page) {
-                0 -> TextButton(onClick = { onTranslate(s, t) }) { Text("Translate") }
+                0 -> TextButton(onClick = { onTranslate(s, t) }) { Text(stringResource(R.string.translate)) }
                 2 -> TextButton(onClick = onSave, enabled = hasTranslation) {
-                    Text(if (savedName != null) "Update" else "Save")
+                    Text(if (savedName != null) stringResource(R.string.update) else stringResource(R.string.save))
                 }
-                else -> TextButton(onClick = onDismiss) { Text("Close") }
+                else -> TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
 // Select simple (TextField + menú estable, sin APIs experimentales).
 @Composable
 private fun LangSelect(tags: List<String>, sel: String, onTap: (String) -> Unit) {
+    val auto = stringResource(R.string.lang_auto)
     var open by remember { mutableStateOf(false) }
     Box {
         OutlinedTextField(
-            value = langName(sel),
+            value = langName(sel, auto),
             onValueChange = {},
             readOnly = true,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = {
                 IconButton(onClick = { open = true }) {
-                    Icon(Icons.Filled.ArrowDropDown, "Open")
+                    Icon(Icons.Filled.ArrowDropDown, stringResource(R.string.open))
                 }
             }
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             tags.forEach { tag ->
                 DropdownMenuItem(
-                    text = { Text(langName(tag)) },
+                    text = { Text(langName(tag, auto)) },
                     onClick = { onTap(tag); open = false }
                 )
             }

@@ -1,5 +1,7 @@
 package com.nimbo
 
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -107,13 +109,13 @@ fun NimboRoot() {
     }
 }
 
-private data class Tab(val id: String, val label: String, val on: ImageVector, val off: ImageVector)
+private data class Tab(val id: String, val label: Int, val on: ImageVector, val off: ImageVector)
 
 private val Tabs = listOf(
-    Tab("files", "Files", Icons.Filled.Folder, Icons.Outlined.Folder),
-    Tab("audio", "Audio", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
-    Tab("photos", "Photos", Icons.Filled.Photo, Icons.Outlined.Photo),
-    Tab("more", "More", Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz),
+    Tab("files", R.string.tab_files, Icons.Filled.Folder, Icons.Outlined.Folder),
+    Tab("audio", R.string.tab_audio, Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
+    Tab("photos", R.string.tab_photos, Icons.Filled.Photo, Icons.Outlined.Photo),
+    Tab("more", R.string.tab_more, Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz),
 )
 
 // Estilo Mihon: topbar con título de la pestaña + navbar abajo.
@@ -149,7 +151,7 @@ fun NimboApp(
                                 selected = sel,
                                 onClick = { tab = t.id },
                                 icon = { Icon(if (sel) t.on else t.off, contentDescription = null) },
-                                label = { Text(t.label) }
+                                label = { Text(stringResource(t.label)) }
                             )
                         }
                     }

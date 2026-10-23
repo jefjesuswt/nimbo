@@ -1,5 +1,6 @@
 package com.nimbo.ui.telegram
 
+import com.nimbo.R
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -498,7 +499,7 @@ object TgRepo {
                 return@launch
             }
             val id = System.currentTimeMillis()
-            val label = if (dir.isEmpty()) "Root" else dir.substringAfterLast('/')
+            val label = if (dir.isEmpty()) app.getString(R.string.root) else dir.substringAfterLast('/')
             _batches.value += BatchUi(
                 id, label, files.size.toLong(), 0, "", 0, files.size, false, true,
                 items = files.map { BatchItem(it.name, it.sizeBytes) }, startMs = id
@@ -529,7 +530,7 @@ object TgRepo {
                     }
                 }
             } catch (_: CancellationException) {
-                _notice.value = "Download cancelled"
+                _notice.value = app.getString(R.string.download_cancelled)
             } finally {
                 batchJobs.remove(id)
                 cancelFlags.remove(id)
@@ -743,7 +744,7 @@ object TgRepo {
         scope.launch {
             val jobs = uris.mapNotNull { uri -> jobOf(app, uri, folder, false) }
             if (jobs.isEmpty()) return@launch
-            val label = if (jobs.size == 1) jobs[0].name else "${jobs.size} files"
+            val label = if (jobs.size == 1) jobs[0].name else app.resources.getQuantityString(R.plurals.files_count, jobs.size, jobs.size)
             prepareBatch(label, jobs)
         }
     }
@@ -832,7 +833,7 @@ object TgRepo {
                 val ids = batchSent[id].orEmpty().toLongArray()
                 if (ids.isNotEmpty()) TgClient.sendAwait(TdApi.DeleteMessages(chat(), ids, true))
             }
-            _notice.value = "Upload cancelled"
+            _notice.value = ctx?.getString(R.string.upload_cancelled)
             throw e
         } finally {
             batchJobs.remove(id)
@@ -969,7 +970,7 @@ object TgRepo {
                 // Fuera la card de scan ANTES del lote: si no, tapa la de upload.
                 batchJobs.remove(scanId)
                 _batches.value = _batches.value.filterNot { it.id == scanId }
-                if (jobs.isNotEmpty()) prepareBatch(if (base.isEmpty()) "${jobs.size} files" else base, jobs)
+                if (jobs.isNotEmpty()) prepareBatch(if (base.isEmpty()) app?.resources?.getQuantityString(R.plurals.files_count, jobs.size, jobs.size).orEmpty() else base, jobs)
             } finally {
                 batchJobs.remove(scanId)
                 cancelFlags.remove(scanId)

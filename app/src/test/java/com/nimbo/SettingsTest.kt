@@ -1,5 +1,6 @@
 package com.nimbo
 
+import com.nimbo.R
 import com.nimbo.ui.settings.darkThemeFor
 import com.nimbo.ui.settings.seedsVisible
 import com.nimbo.ui.settings.themeModeLabel
@@ -8,10 +9,10 @@ import org.junit.Assert.assertEquals
 
 class SettingsTest {
     @Test fun labels() {
-        assertEquals("Light", themeModeLabel("light"))
-        assertEquals("Dark", themeModeLabel("dark"))
-        assertEquals("System default", themeModeLabel("system"))
-        assertEquals("System default", themeModeLabel("??"))
+        assertEquals(R.string.theme_light, themeModeLabel("light"))
+        assertEquals(R.string.theme_dark, themeModeLabel("dark"))
+        assertEquals(R.string.theme_system, themeModeLabel("system"))
+        assertEquals(R.string.theme_system, themeModeLabel("??"))
     }
 
     @Test fun darkFor() {

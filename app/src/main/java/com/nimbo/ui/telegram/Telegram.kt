@@ -83,7 +83,7 @@ fun filterTgFiles(items: List<TgFile>, f: String): List<TgFile> = when (f) {
     else -> items
 }
 
-// Puras, testeables: chip info "N files · X".
+// Pura, testeable: "1.5 MB".
 fun formatBytes(b: Long): String = when {
     b >= (1L shl 30) -> "${"%.1f".format(java.util.Locale.US, b.toDouble() / (1L shl 30))} GB"
     b >= (1L shl 20) -> "${"%.1f".format(java.util.Locale.US, b.toDouble() / (1L shl 20))} MB"
@@ -91,5 +91,3 @@ fun formatBytes(b: Long): String = when {
     else -> "$b B"
 }
 
-fun tgStats(items: List<TgFile>): String =
-    "${items.size} files · ${formatBytes(items.sumOf { it.sizeBytes })}"

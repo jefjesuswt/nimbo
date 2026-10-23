@@ -173,7 +173,8 @@ fun applyCoverLinks(files: List<TgFile>, links: Map<String, Int>): List<TgFile> 
 
 // Álbum = carpeta con archivos de la pestaña (Audio o Fotos), directos.
 data class TgAlbum(val folder: String, val files: List<TgFile>, val title: String = "") {
-    val name: String get() = title.ifEmpty { folder.substringAfterLast('/').ifEmpty { "Unsorted" } }
+    // Vacío = raíz; la UI lo muestra como "Unsorted" traducido.
+    val name: String get() = title.ifEmpty { folder.substringAfterLast('/') }
     val parent: String get() = parentOf(folder)
     val durSec: Int get() = files.sumOf { it.durSec }
     val sizeBytes: Long get() = files.sumOf { it.sizeBytes }
@@ -203,18 +204,11 @@ fun albumArtist(a: TgAlbum): String {
 fun albumSubtitle(a: TgAlbum, audio: Boolean): String =
     listOf(if (audio) albumArtist(a) else "", a.parent).filter { it.isNotEmpty() }.joinToString(" · ")
 
-// "12 tracks · 48:22 · 142.0 MB · 14 Oct" / "30 photos · 2 videos · 1.2 GB · 3 Oct".
+// Cola de la línea de info: "48:22 · 142.0 MB · 14 Oct". Los recuentos
+// (pistas, fotos) los pone la UI, traducidos.
 fun albumInfo(a: TgAlbum, audio: Boolean): String {
-    fun n(c: Int, one: String) = "$c $one" + if (c == 1) "" else "s"
     val parts = mutableListOf<String>()
-    if (audio) {
-        parts += n(a.files.size, "track")
-        if (a.durSec > 0) parts += fmtDur(a.durSec)
-    } else {
-        val vids = a.files.count { it.kind == TgKind.VIDEO }
-        if (a.files.size - vids > 0) parts += n(a.files.size - vids, "photo")
-        if (vids > 0) parts += n(vids, "video")
-    }
+    if (audio && a.durSec > 0) parts += fmtDur(a.durSec)
     parts += formatBytes(a.sizeBytes)
     if (a.lastDate > 0) parts += fmtDate(a.lastDate)
     return parts.joinToString(" · ")
@@ -258,9 +252,12 @@ fun fmtDur(totalSec: Int): String {
     else "%d:%02d".format(java.util.Locale.US, m, s)
 }
 
-// "14 Oct". UTC fijo: determinista en tests y suficiente en UI.
-fun fmtDate(epochSec: Int): String {
+// "14 Oct" / "14 oct" / "10月14日": formato corto del idioma. UTC fijo.
+fun fmtDate(epochSec: Int, locale: java.util.Locale = java.util.Locale.getDefault()): String {
     val d = java.time.Instant.ofEpochSecond(epochSec.toLong())
         .atZone(java.time.ZoneOffset.UTC).toLocalDate()
-    return "${d.dayOfMonth} ${d.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)}"
+    // Patrón del sistema; en tests JVM no existe → "d MMM".
+    val p = runCatching { android.text.format.DateFormat.getBestDateTimePattern(locale, "dMMM") }
+        .getOrNull() ?: "d MMM"
+    return java.time.format.DateTimeFormatter.ofPattern(p, locale).format(d)
 }

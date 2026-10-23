@@ -1,5 +1,8 @@
 package com.nimbo.ui.telegram
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -85,6 +88,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    val res = LocalResources.current
     val track by TgPlayer.track.collectAsState()
     val playing by TgPlayer.playing.collectAsState()
     val posMs by TgPlayer.posMs.collectAsState()
@@ -123,9 +127,9 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
     val topBar: @Composable () -> Unit = {
         // Top: minimizar + contexto + menú.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onClose) { Icon(Icons.Filled.KeyboardArrowDown, "Minimize") }
+            IconButton(onClick = onClose) { Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.minimize)) }
             Text(
-                "${if (isVideo) "Video" else "Audio"} · ${index + 1} of ${queue.size}",
+                (if (isVideo) stringResource(R.string.kind_video) else stringResource(R.string.tab_audio)) + " · " + stringResource(R.string.position, index + 1, queue.size),
                 style = MaterialTheme.typography.labelLarge,
                 color = cs.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -134,25 +138,25 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "Options") }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.options)) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
-                        text = { Text("Details") },
+                        text = { Text(stringResource(R.string.details)) },
                         leadingIcon = { Icon(Icons.Filled.Info, null) },
                         onClick = { menu = false; details = true }
                     )
                     DropdownMenuItem(
-                        text = { Text("Download") },
+                        text = { Text(stringResource(R.string.download)) },
                         leadingIcon = { Icon(Icons.Filled.Download, null) },
                         onClick = {
                             menu = false
                             TgRepo.download(ctx, f) { ok ->
-                                onMsg(if (ok) "Saved to Download/Nimbo" else "Download failed")
+                                onMsg(if (ok) res.getString(R.string.saved_to_downloads) else res.getString(R.string.download_failed))
                             }
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete") },
+                        text = { Text(stringResource(R.string.delete)) },
                         leadingIcon = { Icon(Icons.Filled.Delete, null) },
                         onClick = { menu = false; confirmDelete = true }
                     )
@@ -240,8 +244,8 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 Text(
                     run {
                         val d = dl
-                        if (buffering && d != null) "Downloading… ${(d * 100).toInt()}%"
-                        else "${f.name.substringAfterLast('.', "").uppercase()} · ${formatBytes(f.sizeBytes)} · Saved Messages"
+                        if (buffering && d != null) stringResource(R.string.downloading_pct, (d * 100).toInt())
+                        else "${f.name.substringAfterLast('.', "").uppercase()} · ${formatBytes(f.sizeBytes)} · " + stringResource(R.string.saved_messages)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onSurfaceVariant,
@@ -251,11 +255,11 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             }
             IconButton(onClick = {
                 TgPlayer.toggleFav()
-                onMsg(if (f.id in TgPlayer.favs.value) "Added to favorites" else "Removed from favorites")
+                onMsg(if (f.id in TgPlayer.favs.value) res.getString(R.string.fav_added) else res.getString(R.string.fav_removed))
             }) {
                 Icon(
                     if (fav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    if (fav) "Remove from favorites" else "Add to favorites",
+                    if (fav) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add),
                     tint = if (fav) cs.primary else cs.onSurface
                 )
             }
@@ -287,7 +291,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 Modifier.size(64.dp).clip(CircleShape).background(cs.secondaryContainer)
                     .clickableNoRipple { TgPlayer.prev() },
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Filled.SkipPrevious, "Previous", tint = cs.onSecondaryContainer, modifier = Modifier.size(28.dp)) }
+            ) { Icon(Icons.Filled.SkipPrevious, stringResource(R.string.previous), tint = cs.onSecondaryContainer, modifier = Modifier.size(28.dp)) }
             androidx.compose.foundation.layout.Box(
                 Modifier.weight(1f).height(if (landscape) 72.dp else 96.dp)
                     .clip(if (playing) MaterialTheme.shapes.large else CircleShape)
@@ -297,7 +301,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             ) {
                 Icon(
                     if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    if (playing) "Pause" else "Play",
+                    if (playing) stringResource(R.string.pause) else stringResource(R.string.play),
                     tint = if (playing) cs.onPrimaryContainer else cs.onPrimary,
                     modifier = Modifier.size(40.dp)
                 )
@@ -306,7 +310,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 Modifier.size(64.dp).clip(CircleShape).background(cs.secondaryContainer)
                     .clickableNoRipple { TgPlayer.next() },
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Filled.SkipNext, "Next", tint = cs.onSecondaryContainer, modifier = Modifier.size(28.dp)) }
+            ) { Icon(Icons.Filled.SkipNext, stringResource(R.string.next), tint = cs.onSecondaryContainer, modifier = Modifier.size(28.dp)) }
         }
 
         // Acciones.
@@ -314,13 +318,13 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             ActButton(
                 active = repeat != "off",
                 onClick = { TgPlayer.cycleRepeat() },
-                label = "Repeat: $repeat",
+                label = stringResource(when (repeat) { "all" -> R.string.repeat_all; "one" -> R.string.repeat_one; else -> R.string.repeat_off }),
                 icon = if (repeat == "one") Icons.Filled.RepeatOne else Icons.Filled.Repeat
             )
             ActButton(
                 active = shuffle,
                 onClick = { TgPlayer.toggleShuffle() },
-                label = "Shuffle",
+                label = stringResource(R.string.shuffle),
                 icon = Icons.Filled.Shuffle
             )
             androidx.compose.material3.TextButton(onClick = { TgPlayer.cycleSpeed() }) {
@@ -328,12 +332,12 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             }
             IconButton(onClick = {
                 TgRepo.download(ctx, f) { ok ->
-                    onMsg(if (ok) "Saved to Download/Nimbo" else "Download failed")
+                    onMsg(if (ok) res.getString(R.string.saved_to_downloads) else res.getString(R.string.download_failed))
                 }
-            }) { Icon(Icons.Filled.Download, "Download") }
+            }) { Icon(Icons.Filled.Download, stringResource(R.string.download)) }
             Box {
                 IconButton(onClick = { TgPlayer.cycleTimer() }) {
-                    Icon(Icons.Filled.Timer, if (timer > 0) "Sleep timer: $timer min" else "Sleep timer off", tint = if (timer > 0) cs.primary else cs.onSurface)
+                    Icon(Icons.Filled.Timer, if (timer > 0) stringResource(R.string.sleep_timer_on, timer) else stringResource(R.string.sleep_timer_off), tint = if (timer > 0) cs.primary else cs.onSurface)
                 }
                 if (timer > 0) {
                     Text(
@@ -349,7 +353,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
 
         // Cola.
         Text(
-            "Up next · ${queue.size}",
+            stringResource(R.string.up_next, queue.size),
             style = MaterialTheme.typography.labelLarge,
             color = cs.onSurfaceVariant,
             modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
@@ -366,7 +370,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 },
                 onOpen = { TgPlayer.playAt(i) },
                 badge = {
-                    if (cur) Icon(Icons.Filled.GraphicEq, "Playing", tint = cs.primary)
+                    if (cur) Icon(Icons.Filled.GraphicEq, stringResource(R.string.playing), tint = cs.primary)
                 }
             )
         }
@@ -407,14 +411,13 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             title = { Text(f.name) },
             text = {
                 Text(
-                    "${if (isVideo) "Video" else "Audio"}" +
+                    (if (isVideo) stringResource(R.string.kind_video) else stringResource(R.string.tab_audio)) +
                         (if (f.dur.isNotEmpty()) " · ${f.dur}" else "") +
-                        " · ${formatBytes(f.sizeBytes)} · Saved in Telegram Saved Messages. " +
-                        "Streams on play; nothing is stored on this phone."
+                        " · ${formatBytes(f.sizeBytes)} · " + stringResource(R.string.details_body)
                 )
             },
             confirmButton = {
-                TextButton(onClick = { details = false }) { Text("Close") }
+                TextButton(onClick = { details = false }) { Text(stringResource(R.string.close)) }
             }
         )
     }
@@ -422,10 +425,10 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             icon = { Icon(Icons.Filled.Delete, null) },
-            title = { Text("Delete from Telegram?") },
-            text = { Text("${f.showTitle()} will be removed from your Saved Messages.") },
+            title = { Text(stringResource(R.string.delete_from_tg_title)) },
+            text = { Text(stringResource(R.string.delete_from_tg_body, f.showTitle())) },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -435,9 +438,9 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                             TgPlayer.stop()
                             onClose()
                         }
-                        onMsg(if (ok) "Deleted" else "Delete failed")
+                        onMsg(if (ok) res.getString(R.string.deleted) else res.getString(R.string.delete_failed))
                     }
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             }
         )
     }

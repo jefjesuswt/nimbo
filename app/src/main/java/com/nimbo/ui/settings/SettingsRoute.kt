@@ -1,5 +1,12 @@
 package com.nimbo.ui.settings
 
+import androidx.compose.material.icons.filled.Language
+import android.os.LocaleList
+import android.os.Build
+import android.content.Context
+import android.app.LocaleManager
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,38 +73,45 @@ fun SettingsRoute(
     fun set(key: String, v: Any) = SettingsPrefs.save(ctx, key, v)
     var themeDlg by remember { mutableStateOf(false) }
     var aboutDlg by remember { mutableStateOf(false) }
+    var langDlg by remember { mutableStateOf(false) }
     val cs = MaterialTheme.colorScheme
 
     NimboScaffold(
-        title = "More"
+        title = stringResource(R.string.tab_more)
     ) {
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 32.dp)
         ) {
             item {
-                Group("Appearance") {
+                Group(stringResource(R.string.settings_appearance)) {
                     PrefRow(
-                        icon = Icons.Filled.Palette, title = "Theme",
-                        sub = themeModeLabel(themeMode),
+                        icon = Icons.Filled.Palette, title = stringResource(R.string.settings_theme),
+                        sub = stringResource(themeModeLabel(themeMode)),
                         onClick = { themeDlg = true }
                     )
                     PrefRow(
-                        icon = Icons.Filled.Palette, title = "Dynamic color",
-                        sub = "Follow wallpaper (Android 12+)",
+                        icon = Icons.Filled.Palette, title = stringResource(R.string.settings_dynamic),
+                        sub = stringResource(R.string.settings_dynamic_sub),
                         trailing = { Switch(dynamic, { onDynamic(it); set(SettingsPrefs.DYNAMIC, it) }) }
+                    )
+                    // Idioma por app (Android 13+); el sistema recrea la Activity al cambiarlo.
+                    if (Build.VERSION.SDK_INT >= 33) PrefRow(
+                        icon = Icons.Filled.Language, title = stringResource(R.string.settings_language),
+                        sub = Languages.firstOrNull { it.first == appLang(ctx) }?.second ?: stringResource(R.string.theme_system),
+                        onClick = { langDlg = true }
                     )
                     // Semillas solo sin dynamic: con dynamic manda el wallpaper.
                     if (seedsVisible(dynamic)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                            Text("Seed color", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.settings_seed), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Base palette when dynamic color is off",
+                                stringResource(R.string.settings_seed_sub),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = cs.onSurfaceVariant
                             )
                             Row(Modifier.padding(top = 12.dp)) {
-                                listOf("OCEAN" to "Ocean", "MEADOW" to "Meadow", "DUSK" to "Dusk").forEach { (v, l) ->
+                                listOf("OCEAN" to stringResource(R.string.seed_ocean), "MEADOW" to stringResource(R.string.seed_meadow), "DUSK" to stringResource(R.string.seed_dusk)).forEach { (v, l) ->
                                     val sel = seed == v
                                     Column(
                                         Modifier.weight(1f).clip(MaterialTheme.shapes.large)
@@ -110,7 +124,7 @@ fun SettingsRoute(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             if (sel) Icon(
-                                                Icons.Filled.Check, "Selected",
+                                                Icons.Filled.Check, stringResource(R.string.selected),
                                                 tint = Color.White, modifier = Modifier.size(28.dp)
                                             )
                                         }
@@ -123,10 +137,10 @@ fun SettingsRoute(
                     }
                 }
                 TelegramGroup()
-                Group("Notifications") {
+                Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
-                        icon = Icons.Filled.Tune, title = "Notification categories",
-                        sub = "Manage in system settings",
+                        icon = Icons.Filled.Tune, title = stringResource(R.string.settings_notif_categories),
+                        sub = stringResource(R.string.settings_notif_sub),
                         trailIcon = Icons.Filled.OpenInNew,
                         onClick = {
                             ctx.startActivity(android.content.Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
@@ -135,8 +149,8 @@ fun SettingsRoute(
                         }
                     )
                 }
-                Group("About") {
-                    PrefRow(icon = Icons.Filled.Info, title = "About Nimbo", sub = "Version 1.0") {
+                Group(stringResource(R.string.settings_about)) {
+                    PrefRow(icon = Icons.Filled.Info, title = stringResource(R.string.settings_about_nimbo), sub = stringResource(R.string.version, "1.0")) {
                         aboutDlg = true
                     }
                 }
@@ -147,8 +161,8 @@ fun SettingsRoute(
 
     if (themeDlg) {
         RadioDialog(
-            title = "Theme",
-            options = listOf("system" to "System default", "light" to "Light", "dark" to "Dark"),
+            title = stringResource(R.string.settings_theme),
+            options = listOf("system" to stringResource(R.string.theme_system), "light" to stringResource(R.string.theme_light), "dark" to stringResource(R.string.theme_dark)),
             initial = themeMode,
             onDismiss = { themeDlg = false },
             onConfirm = {
@@ -157,14 +171,43 @@ fun SettingsRoute(
             }
         )
     }
+    if (langDlg) {
+        RadioDialog(
+            title = stringResource(R.string.settings_language),
+            options = listOf("" to stringResource(R.string.theme_system)) + Languages,
+            initial = appLang(ctx),
+            onDismiss = { langDlg = false },
+            onConfirm = {
+                langDlg = false
+                setAppLang(ctx, it)
+            }
+        )
+    }
     if (aboutDlg) {
         AlertDialog(
             onDismissRequest = { aboutDlg = false },
             title = { Text("Nimbo") },
-            text = { Text("Version 1.0\nYour files, music and photos in your own Telegram Saved Messages. Not affiliated with Telegram.") },
-            confirmButton = { TextButton(onClick = { aboutDlg = false }) { Text("OK") } }
+            text = { Text(stringResource(R.string.version, "1.0") + "\n" + stringResource(R.string.about_body)) },
+            confirmButton = { TextButton(onClick = { aboutDlg = false }) { Text(stringResource(R.string.ok)) } }
         )
     }
+}
+
+// Cada idioma con su propio nombre. "" = el del sistema.
+private val Languages = listOf(
+    "en" to "English", "es" to "Español", "pt" to "Português", "fr" to "Français", "ja" to "日本語"
+)
+
+private fun appLang(ctx: Context): String {
+    if (Build.VERSION.SDK_INT < 33) return ""
+    val l = ctx.getSystemService(LocaleManager::class.java).applicationLocales
+    return if (l.isEmpty) "" else l[0].language
+}
+
+private fun setAppLang(ctx: Context, tag: String) {
+    if (Build.VERSION.SDK_INT < 33) return
+    ctx.getSystemService(LocaleManager::class.java).applicationLocales =
+        if (tag.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
 }
 
 private fun seedColor(v: String): Color = when (v) {
@@ -187,10 +230,10 @@ private fun TelegramGroup() {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
             Text(
                 when (auth) {
-                    com.nimbo.ui.telegram.TgAuthState.READY -> "Connected to Telegram cloud"
+                    com.nimbo.ui.telegram.TgAuthState.READY -> stringResource(R.string.tg_connected)
                     com.nimbo.ui.telegram.TgAuthState.WAIT_CODE,
-                    com.nimbo.ui.telegram.TgAuthState.WAIT_PASSWORD -> "Login in progress…"
-                    else -> if (apiId.isNotBlank()) "Keys saved, not connected" else "No API keys yet"
+                    com.nimbo.ui.telegram.TgAuthState.WAIT_PASSWORD -> stringResource(R.string.tg_login_progress)
+                    else -> if (apiId.isNotBlank()) stringResource(R.string.tg_keys_saved) else stringResource(R.string.tg_no_keys)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = cs.onSurfaceVariant
@@ -221,7 +264,7 @@ private fun TelegramGroup() {
                 modifier = Modifier.fillMaxWidth()
             )
             if (err) Text(
-                "Check both values.",
+                stringResource(R.string.check_both),
                 color = cs.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp)
@@ -234,14 +277,14 @@ private fun TelegramGroup() {
                         com.nimbo.ui.telegram.TgSecrets.save(ctx, id, apiHash)
                         com.nimbo.ui.telegram.TgClient.start(ctx, id, apiHash.trim())
                     } else err = true
-                }) { Text("Save") }
+                }) { Text(stringResource(R.string.save)) }
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = {
                     com.nimbo.ui.telegram.TgClient.logout()
                     com.nimbo.ui.telegram.TgSecrets.clear(ctx)
                     apiId = ""
                     apiHash = ""
-                }) { Text("Forget & logout") }
+                }) { Text(stringResource(R.string.forget_logout)) }
             }
         }
     }

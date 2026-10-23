@@ -1,5 +1,6 @@
 package com.nimbo.ui.settings
 
+import com.nimbo.R
 import android.content.Context
 import androidx.core.content.edit
 
@@ -30,10 +31,10 @@ object SettingsPrefs {
     }
 }
 
-fun themeModeLabel(mode: String): String = when (mode) {
-    "light" -> "Light"
-    "dark" -> "Dark"
-    else -> "System default"
+fun themeModeLabel(mode: String): Int = when (mode) {
+    "light" -> R.string.theme_light
+    "dark" -> R.string.theme_dark
+    else -> R.string.theme_system
 }
 
 fun darkThemeFor(mode: String, systemDark: Boolean): Boolean =

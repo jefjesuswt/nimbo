@@ -13,7 +13,6 @@ import com.nimbo.ui.telegram.isTextFile
 import com.nimbo.ui.telegram.nextRepeat
 import com.nimbo.ui.telegram.nextSpeed
 import com.nimbo.ui.telegram.nextTimer
-import com.nimbo.ui.telegram.tgStats
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -43,7 +42,7 @@ class TelegramTest {
     }
 
     @Test fun countryPhone() {
-        assertEquals("España", defaultCountry().name)
+        assertEquals("ES", defaultCountry().iso)
         assertEquals("525512345678", fullPhone("52", "5512345678"))
         assertEquals("5212345678", fullPhone("52", "012345678")) // cero troncal fuera
         assertEquals("15551234567", fullPhone("1", "(555) 123-4567"))
@@ -59,7 +58,6 @@ class TelegramTest {
             TgFile("a", "x.mp3", TgKind.AUDIO, "", 1L shl 20),
             TgFile("b", "y.pdf", TgKind.DOC, "", 1L shl 20)
         )
-        assertEquals("2 files · 2.0 MB", tgStats(two))
     }
 
     @Test fun playerCycles() {        assertEquals("all", nextRepeat("off"))

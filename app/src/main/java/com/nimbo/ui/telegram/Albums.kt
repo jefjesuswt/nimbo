@@ -1,5 +1,8 @@
 package com.nimbo.ui.telegram
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,8 +56,8 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
     if (albums.isEmpty()) {
         EmptyState(
             icon = if (audio) Icons.Filled.MusicNote else Icons.Filled.Photo,
-            title = if (audio) "No audio yet" else "No photos yet",
-            body = "Upload from the Files tab."
+            title = if (audio) stringResource(R.string.no_audio) else stringResource(R.string.no_photos),
+            body = stringResource(R.string.upload_from_files)
         )
         return
     }
@@ -87,7 +90,7 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
                         )
                     }
                     Column(Modifier.padding(12.dp)) {
-                        Text(a.name, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+                        Text(a.name.ifEmpty { stringResource(R.string.unsorted) }, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
                         AlbumLines(a, audio)
                     }
                 }
@@ -107,7 +110,7 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
                     ) { AlbumArt(a, audio, Modifier.fillMaxSize(), 28) }
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(a.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                        Text(a.name.ifEmpty { stringResource(R.string.unsorted) }, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                         AlbumLines(a, audio)
                     }
                     Icon(Icons.Filled.ChevronRight, null, tint = cs.onSurfaceVariant)
@@ -122,7 +125,16 @@ private fun AlbumLines(a: TgAlbum, audio: Boolean) {
     val cs = MaterialTheme.colorScheme
     val sub = albumSubtitle(a, audio)
     if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    Text(albumInfo(a, audio), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val counts = if (audio) listOf(pluralStringResource(R.plurals.tracks, a.files.size, a.files.size))
+    else {
+        val vids = a.files.count { it.kind == TgKind.VIDEO }
+        val pics = a.files.size - vids
+        listOfNotNull(
+            if (pics > 0) pluralStringResource(R.plurals.photos_count, pics, pics) else null,
+            if (vids > 0) pluralStringResource(R.plurals.videos_count, vids, vids) else null
+        )
+    }
+    Text((counts + albumInfo(a, audio)).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 // Portada: audio = arte de la primera pista que lo tenga (embebido o

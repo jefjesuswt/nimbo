@@ -33,6 +33,9 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TgRepoTest {
+    // Fechas y meta deterministas, sea cual sea el idioma de la máquina.
+    @org.junit.Before fun us() { java.util.Locale.setDefault(java.util.Locale.US) }
+
     private fun audioMsg(
         id: Long = 5,
         file: String = "mix.mp3",
@@ -348,17 +351,17 @@ class TgRepoTest {
         assertEquals(listOf("", "music/rock/b-side"), albums.map { it.folder })
         val a = albums[1]
         assertEquals("b-side", a.name)
-        assertEquals("Unsorted", albums[0].name)
+        assertEquals("", albums[0].name)
         assertEquals("Some Artist", com.nimbo.ui.telegram.albumArtist(a))
         assertEquals("Some Artist · music/rock", com.nimbo.ui.telegram.albumSubtitle(a, true))
-        assertEquals("3 tracks · 3:30 · 3.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(a, true))
-        assertEquals("1 track · 1.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(albums[0], true))
+        assertEquals("3:30 · 3.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(a, true))
+        assertEquals("1.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(albums[0], true))
         // Subcarpeta con nombre repetido: el título suma el padre.
         val twins = com.nimbo.ui.telegram.albumsOf(listOf(au("x", "Album A/CD1", "", 1), au("y", "Album B/CD1", "", 1), au("z", "Solo/Disc", "", 1)))
         assertEquals(listOf("Album A / CD1", "Album B / CD1", "Disc"), twins.map { it.name })
         val pic = com.nimbo.ui.telegram.TgFile("p", "p.jpg", TgKind.IMAGE, "", 1L shl 20, folder = "trip", dateSec = 1728691200)
         val vid = pic.copy(id = "v", kind = TgKind.VIDEO)
-        assertEquals("1 photo · 1 video · 2.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(com.nimbo.ui.telegram.TgAlbum("trip", listOf(pic, vid)), false))
+        assertEquals("2.0 MB · 12 Oct", com.nimbo.ui.telegram.albumInfo(com.nimbo.ui.telegram.TgAlbum("trip", listOf(pic, vid)), false))
     }
 
     @Test fun coverHash() {

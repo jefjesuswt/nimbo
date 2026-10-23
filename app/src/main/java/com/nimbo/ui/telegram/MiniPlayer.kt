@@ -1,5 +1,7 @@
 package com.nimbo.ui.telegram
 
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -97,7 +99,7 @@ fun MiniPlayer(onOpenSheet: () -> Unit) {
             ) {
                 Text(f.showTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, color = cs.onTertiaryContainer)
                 Text(
-                    f.artist.ifEmpty { "Streaming from Telegram" },
+                    f.artist.ifEmpty { stringResource(R.string.streaming_from_tg) },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,
@@ -105,7 +107,7 @@ fun MiniPlayer(onOpenSheet: () -> Unit) {
                 )
             }
             IconButton(onClick = { TgPlayer.prev() }) {
-                Icon(Icons.Filled.SkipPrevious, "Previous", tint = cs.onTertiaryContainer)
+                Icon(Icons.Filled.SkipPrevious, stringResource(R.string.previous), tint = cs.onTertiaryContainer)
             }
             Box(
                 Modifier.size(48.dp).clip(CircleShape).background(cs.primary),
@@ -114,13 +116,13 @@ fun MiniPlayer(onOpenSheet: () -> Unit) {
                 IconButton(onClick = { TgPlayer.toggle() }) {
                     Icon(
                         if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        if (playing) "Pause" else "Play",
+                        if (playing) stringResource(R.string.pause) else stringResource(R.string.play),
                         tint = cs.onPrimary
                     )
                 }
             }
             IconButton(onClick = { TgPlayer.next() }) {
-                Icon(Icons.Filled.SkipNext, "Next", tint = cs.onTertiaryContainer)
+                Icon(Icons.Filled.SkipNext, stringResource(R.string.next), tint = cs.onTertiaryContainer)
             }
         }
     }

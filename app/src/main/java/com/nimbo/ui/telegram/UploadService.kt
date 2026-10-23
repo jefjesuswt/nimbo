@@ -1,5 +1,6 @@
 package com.nimbo.ui.telegram
 
+import com.nimbo.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -17,7 +18,7 @@ class UploadService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startFg(this, "Preparing…", 0f)
+        startFg(this, getString(R.string.notif_preparing), 0f)
         return START_NOT_STICKY
     }
 
@@ -47,7 +48,7 @@ class UploadService : Service() {
             val nm = svc.getSystemService(NotificationManager::class.java)
             if (Build.VERSION.SDK_INT >= 26 && nm?.getNotificationChannel(CH) == null) {
                 nm?.createNotificationChannel(
-                    NotificationChannel(CH, "Uploads", NotificationManager.IMPORTANCE_LOW)
+                    NotificationChannel(CH, svc.getString(R.string.notif_channel_uploads), NotificationManager.IMPORTANCE_LOW)
                 )
             }
             val n = build(svc, label, frac, "")
@@ -61,7 +62,7 @@ class UploadService : Service() {
         private fun build(ctx: Context, label: String, frac: Float, current: String) =
             NotificationCompat.Builder(ctx, CH)
                 .setSmallIcon(android.R.drawable.stat_sys_upload)
-                .setContentTitle("Uploading $label")
+                .setContentTitle(ctx.getString(R.string.uploading_name, label))
                 .setContentText(current.ifEmpty { "${(frac * 100).toInt()}%" })
                 .setProgress(100, (frac * 100).toInt().coerceIn(0, 100), false)
                 .setOngoing(true)

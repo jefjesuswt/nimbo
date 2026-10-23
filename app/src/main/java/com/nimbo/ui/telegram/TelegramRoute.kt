@@ -1,5 +1,9 @@
 package com.nimbo.ui.telegram
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -139,6 +143,7 @@ fun TelegramRoute(tab: String = "files") {
     // -1 keys, 0 login, 1 code, 2 files, 3 password 2FA. Auth TDLib manda.
     var view by remember { mutableIntStateOf(-1) }
     val ctx = LocalContext.current
+    val res = LocalResources.current
     var hasKeys by remember { mutableStateOf(TgSecrets.hasKeys(ctx)) }
     val auth by TgClient.auth.collectAsState()
     val tgError by TgClient.error.collectAsState()
@@ -183,8 +188,8 @@ fun TelegramRoute(tab: String = "files") {
         }
     }
     val openAlbumName = remember(tabList, openAlbum) {
-        albumsOf(tabList.orEmpty()).firstOrNull { it.folder == openAlbum }?.name ?: "Unsorted"
-    }
+        albumsOf(tabList.orEmpty()).firstOrNull { it.folder == openAlbum }?.name.orEmpty()
+    }.ifEmpty { stringResource(R.string.unsorted) }
     val keeps by TgRepo.keeps.collectAsState()
     val syncing by TgRepo.loading.collectAsState()
     // Carpeta actual 7f ("music/rock", "" = raíz).
@@ -312,12 +317,12 @@ fun TelegramRoute(tab: String = "files") {
         var name by remember { mutableStateOf("") }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { newFolder = false },
-            title = { androidx.compose.material3.Text("New folder") },
+            title = { androidx.compose.material3.Text(stringResource(R.string.new_folder)) },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { androidx.compose.material3.Text("Name") },
+                    label = { androidx.compose.material3.Text(stringResource(R.string.name)) },
                     singleLine = true
                 )
             },
@@ -327,15 +332,15 @@ fun TelegramRoute(tab: String = "files") {
                         val target = if (dir.isEmpty()) name else "$dir/$name"
                         TgRepo.createFolder(target) { ok ->
                             if (ok) dir = com.nimbo.ui.telegram.normalizePath(target)
-                            else scope.launch { snack.showSnackbar("Couldn't create folder") }
+                            else scope.launch { snack.showSnackbar(res.getString(R.string.folder_create_failed)) }
                         }
                         newFolder = false
                     }
-                ) { androidx.compose.material3.Text("Create") }
+                ) { androidx.compose.material3.Text(stringResource(R.string.create)) }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { newFolder = false }) {
-                    androidx.compose.material3.Text("Cancel")
+                    androidx.compose.material3.Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -366,7 +371,7 @@ fun TelegramRoute(tab: String = "files") {
             decorationBox = { inner ->
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (query.isEmpty()) Text(
-                        "Search files and folders",
+                        stringResource(R.string.search_hint),
                         style = MaterialTheme.typography.titleLarge,
                         color = cs.onSurfaceVariant,
                         maxLines = 1
@@ -392,15 +397,15 @@ fun TelegramRoute(tab: String = "files") {
     NimboScaffold(
         titleContent = if (view == 2 && searching) searchField else null,
         title = if (view != 2) "Nimbo" else if (query.isNotEmpty()) "\u201C$query\u201D" else if (openAlbum != null) openAlbumName else when (tab) {
-            "audio" -> "Audio"
-            "photos" -> "Photos"
-            else -> "Files"
+            "audio" -> stringResource(R.string.tab_audio)
+            "photos" -> stringResource(R.string.tab_photos)
+            else -> stringResource(R.string.tab_files)
         },
         snack = snack,
         navigationIcon = if (view == 2 && searching) {
-            { IconButton(onClick = { closeSearch() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Close search") } }
+            { IconButton(onClick = { closeSearch() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.close_search)) } }
         } else if (view == 2 && openAlbum != null) {
-            { IconButton(onClick = { openAlbum = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+            { IconButton(onClick = { openAlbum = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } }
         } else null,
         actions = {
             if (selection.isNotEmpty()) {
@@ -413,57 +418,57 @@ fun TelegramRoute(tab: String = "files") {
                 IconButton(onClick = {
                     clipboard = "cut" to files
                     selection = emptySet()
-                    scope.launch { snack.showSnackbar("Cut — go to a folder and paste") }
-                }) { Icon(Icons.Filled.ContentCut, "Cut") }
+                    scope.launch { snack.showSnackbar(res.getString(R.string.cut_hint)) }
+                }) { Icon(Icons.Filled.ContentCut, stringResource(R.string.cut)) }
                 IconButton(onClick = {
                     clipboard = "copy" to files
                     selection = emptySet()
-                    scope.launch { snack.showSnackbar("Copied — go to a folder and paste") }
-                }) { Icon(Icons.Filled.ContentCopy, "Copy") }
+                    scope.launch { snack.showSnackbar(res.getString(R.string.copied_hint)) }
+                }) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.copy)) }
                 IconButton(onClick = {
                     files.forEach { TgRepo.delete(it) {} }
                     selection = emptySet()
-                }) { Icon(Icons.Filled.Delete, "Delete") }
-                IconButton(onClick = { selection = emptySet() }) { Icon(Icons.Filled.Close, "Clear") }
+                }) { Icon(Icons.Filled.Delete, stringResource(R.string.delete)) }
+                IconButton(onClick = { selection = emptySet() }) { Icon(Icons.Filled.Close, stringResource(R.string.clear)) }
             } else if (searching) {
-                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Clear") }
+                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, stringResource(R.string.clear)) }
             } else {
                 if (clipboard != null) {
                     IconButton(onClick = {
                         val (mode, files) = clipboard!!
                         clipboard = null
                         if (mode == "cut") TgRepo.moveFiles(files, dir) { n, total ->
-                            scope.launch { snack.showSnackbar(if (n == total) "Moved" else "Moved $n/$total") }
+                            scope.launch { snack.showSnackbar(if (n == total) res.getString(R.string.moved) else res.getString(R.string.moved_partial, n, total)) }
                         } else TgRepo.copyFiles(files, dir) { n, total ->
-                            scope.launch { snack.showSnackbar(if (n == total) "Copied" else "Copied $n/$total") }
+                            scope.launch { snack.showSnackbar(if (n == total) res.getString(R.string.copied) else res.getString(R.string.copied_partial, n, total)) }
                         }
-                    }) { Icon(Icons.Filled.ContentPaste, "Paste here") }
+                    }) { Icon(Icons.Filled.ContentPaste, stringResource(R.string.paste_here)) }
                 }
                 if (view == 2 && !searching) {
                     IconButton(onClick = { searching = true }) {
-                        Icon(Icons.Filled.Search, "Search", tint = if (query.isNotEmpty()) cs.primary else androidx.compose.material3.LocalContentColor.current)
+                        Icon(Icons.Filled.Search, stringResource(R.string.search), tint = if (query.isNotEmpty()) cs.primary else androidx.compose.material3.LocalContentColor.current)
                     }
                     IconButton(onClick = { setGrid(!grid) }) {
                         Icon(
                             if (grid) Icons.Filled.ViewList else Icons.Filled.GridView,
-                            if (grid) "List view" else "Grid view"
+                            if (grid) stringResource(R.string.list_view) else stringResource(R.string.grid_view)
                         )
                     }
                     if (tab == "files") {
                         IconButton(onClick = { filterSheet = true }) {
-                            Icon(Icons.Filled.FilterList, "Filter and display")
+                            Icon(Icons.Filled.FilterList, stringResource(R.string.filter))
                         }
                     }
                     Box {
-                        IconButton(onClick = { overflow = true }) { Icon(Icons.Filled.MoreVert, "More options") }
+                        IconButton(onClick = { overflow = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.more_options)) }
                         androidx.compose.material3.DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
                             if (tab == "files") androidx.compose.material3.DropdownMenuItem(
-                                text = { Text("New folder") },
+                                text = { Text(stringResource(R.string.new_folder)) },
                                 leadingIcon = { Icon(Icons.Filled.CreateNewFolder, null) },
                                 onClick = { overflow = false; newFolder = true }
                             )
                             androidx.compose.material3.DropdownMenuItem(
-                                text = { Text("Refresh") },
+                                text = { Text(stringResource(R.string.refresh)) },
                                 leadingIcon = { Icon(Icons.Filled.Refresh, null) },
                                 onClick = { overflow = false; TgRepo.refresh() }
                             )
@@ -481,11 +486,11 @@ fun TelegramRoute(tab: String = "files") {
                         contentColor = cs.onSecondaryContainer,
                         elevation = FloatingActionButtonDefaults.elevation(0.dp),
                         modifier = Modifier.padding(end = 12.dp)
-                    ) { Icon(Icons.Filled.DriveFolderUpload, "Upload folder") }
+                    ) { Icon(Icons.Filled.DriveFolderUpload, stringResource(R.string.upload_folder)) }
                     ExtendedFloatingActionButton(
                         onClick = { pickUpload.launch(arrayOf("*/*")) },
                         icon = { Icon(Icons.Filled.CloudUpload, null) },
-                        text = { Text("Upload") },
+                        text = { Text(stringResource(R.string.upload)) },
                         containerColor = cs.primaryContainer,
                         contentColor = cs.onPrimaryContainer
                     )
@@ -528,7 +533,7 @@ fun TelegramRoute(tab: String = "files") {
                     val failed by TgRepo.failed.collectAsState()
                     if (failed.isNotEmpty()) {
                         LaunchedEffect(failed) {
-                            snack.showSnackbar("Failed (${failed.size}): " + failed.take(3).joinToString() + if (failed.size > 3) "…" else "")
+                            snack.showSnackbar(res.getString(R.string.failed_list, failed.size, failed.take(3).joinToString() + if (failed.size > 3) "…" else ""))
                             TgRepo.clearFailed()
                         }
                     }
@@ -545,11 +550,11 @@ fun TelegramRoute(tab: String = "files") {
                     if (pending != null) {
                         val p = pending!!
                         RadioDialog(
-                            title = "${p.conflicts.size} already exist: " + p.conflicts.take(3).joinToString { it.name } + if (p.conflicts.size > 3) "…" else "",
+                            title = pluralStringResource(R.plurals.already_exist, p.conflicts.size, p.conflicts.size, p.conflicts.take(3).joinToString { it.name } + if (p.conflicts.size > 3) "…" else ""),
                             options = listOf(
-                                "replace" to "Replace",
-                                "duplicate" to "Keep both",
-                                "skip" to "Skip"
+                                "replace" to stringResource(R.string.replace),
+                                "duplicate" to stringResource(R.string.keep_both),
+                                "skip" to stringResource(R.string.skip)
                             ),
                             initial = "replace",
                             onDismiss = { TgRepo.resolvePending(null) },
@@ -595,14 +600,14 @@ fun TelegramRoute(tab: String = "files") {
                     onPlay = { f ->
                         if (f.kind == TgKind.AUDIO || f.kind == TgKind.VIDEO) playFile(f)
                         else if (f.kind == TgKind.DOC && isTextFile(f.name)) textFile = f
-                        else scope.launch { snack.showSnackbar("Streaming ${f.name}") }
+                        else scope.launch { snack.showSnackbar(res.getString(R.string.streaming_name, f.name)) }
                     },
                     playingId = playingId,
                     playing = playing,
                     playP = playP,
                     keeps = keeps,
                     onOpenInTg = { f ->
-                        if (!TgRepo.openInTg(ctx, f)) scope.launch { snack.showSnackbar("Telegram app not found") }
+                        if (!TgRepo.openInTg(ctx, f)) scope.launch { snack.showSnackbar(res.getString(R.string.tg_not_found)) }
                     },
                     onPreview = { f ->
                         when {
@@ -621,7 +626,7 @@ fun TelegramRoute(tab: String = "files") {
                             }
                             f.kind == TgKind.DOC && isTextFile(f.name) -> textFile = f
                             else -> scope.launch {
-                                if (!TgView.open(ctx, f)) snack.showSnackbar("Couldn't open ${f.showTitle()}")
+                                if (!TgView.open(ctx, f)) snack.showSnackbar(res.getString(R.string.couldnt_open, f.showTitle()))
                             }
                         }
                     },
@@ -641,7 +646,7 @@ fun TelegramRoute(tab: String = "files") {
                     onMsg = { m -> scope.launch { snack.showSnackbar(m) } },
                     onSelect = { toggleSel(it); manageFile = null },
                     onDownload = { TgRepo.download(ctx, f) { ok ->
-                        scope.launch { snack.showSnackbar(if (ok) "Saved to Download/Nimbo" else "Download failed") }
+                        scope.launch { snack.showSnackbar(if (ok) res.getString(R.string.saved_to_downloads) else res.getString(R.string.download_failed)) }
                     } }
                 )
             }
@@ -662,15 +667,15 @@ fun TelegramRoute(tab: String = "files") {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (tab == "files") {
-                            Text("Show", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
+                            Text(stringResource(R.string.filter_show), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
                             FilterChipRow(
-                                options = listOf("all" to "All", "audio" to "Audio", "media" to "Media", "other" to "Files"),
+                                options = listOf("all" to stringResource(R.string.filter_all), "audio" to stringResource(R.string.tab_audio), "media" to stringResource(R.string.filter_media), "other" to stringResource(R.string.tab_files)),
                                 selected = filter,
                                 onSelect = { filter = it }
                             )
                         }
                         Text(
-                            tgStats(cloud),
+                            pluralStringResource(R.plurals.files_count, cloud.size, cloud.size) + " · " + formatBytes(cloud.sumOf { it.sizeBytes }),
                             style = MaterialTheme.typography.bodySmall,
                             color = cs.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -730,7 +735,7 @@ private fun ScanningCard(onOpen: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Scanning folder…", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.scanning_folder), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
             LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
@@ -754,13 +759,13 @@ private fun UploadCard(b: TgRepo.BatchUi, onOpen: () -> Unit) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${if (b.down) "Downloading" else "Uploading"} ${b.label}",
+                    stringResource(if (b.down) R.string.downloading_name else R.string.uploading_name, b.label),
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { TgRepo.cancelBatch(b.id) }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Close, "Cancel")
+                    Icon(Icons.Filled.Close, stringResource(R.string.cancel))
                 }
             }
             Text(
@@ -789,7 +794,7 @@ private fun QueuedCard(b: TgRepo.BatchUi, onOpen: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(b.label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Queued · ${b.totalFiles} files",
+                    stringResource(R.string.queued) + " · " + pluralStringResource(R.plurals.files_count, b.totalFiles, b.totalFiles),
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant
                 )
@@ -826,21 +831,21 @@ private fun BatchDetail(b: TgRepo.BatchUi, onClose: () -> Unit) {
                     Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, "Close") }
+                    IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, stringResource(R.string.close)) }
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "${if (b.down) "Downloading" else "Uploading"} ${b.label}",
+                            stringResource(if (b.down) R.string.downloading_name else R.string.uploading_name, b.label),
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            "$doneN of ${b.totalFiles} done" + if (failN > 0) " · $failN failed" else "",
+                            stringResource(R.string.done_of, doneN, b.totalFiles) + if (failN > 0) " · " + pluralStringResource(R.plurals.n_failed, failN, failN) else "",
                             style = MaterialTheme.typography.bodySmall,
                             color = cs.onSurfaceVariant
                         )
                     }
                     if (b.running || b.scan) {
-                        TextButton(onClick = { TgRepo.cancelBatch(b.id); onClose() }) { Text("Cancel") }
+                        TextButton(onClick = { TgRepo.cancelBatch(b.id); onClose() }) { Text(stringResource(R.string.cancel)) }
                     }
                 }
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -853,10 +858,10 @@ private fun BatchDetail(b: TgRepo.BatchUi, onClose: () -> Unit) {
                         Column(Modifier.weight(1f)) {
                             LinearWavyProgressIndicator(progress = { p }, amplitude = { 1f }, modifier = Modifier.fillMaxWidth())
                             Text(
-                                if (b.scan) "Scanning…"
-                                else if (speed > 0) "${formatBytes(speed.toLong())}/s" + if (eta >= 0) " · ${if (eta < 60) "${eta}s" else "${eta / 60}m${eta % 60}s"} left" else ""
-                                else if (b.running) "Starting…"
-                                else "Queued",
+                                if (b.scan) stringResource(R.string.scanning)
+                                else if (speed > 0) "${formatBytes(speed.toLong())}/s" + if (eta >= 0) " · " + stringResource(R.string.eta_left, if (eta < 60) "${eta}s" else "${eta / 60}m${eta % 60}s") else ""
+                                else if (b.running) stringResource(R.string.starting)
+                                else stringResource(R.string.queued),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = cs.onSurfaceVariant
                             )
@@ -925,7 +930,7 @@ private fun SubHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { onDir("") }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Home, "Root", tint = cs.primary)
+                    Icon(Icons.Filled.Home, stringResource(R.string.root), tint = cs.primary)
                 }
                 var acc = ""
                 dir.split('/').filter { it.isNotEmpty() }.forEach { seg ->
@@ -954,9 +959,9 @@ private fun LoginView(
     var countryOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(8.dp))
-        Text("Connect Telegram", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.connect_tg), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Sign in with your phone number to upload files to your Telegram cloud.",
+            stringResource(R.string.login_body),
             style = MaterialTheme.typography.bodyMedium,
             color = cs.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -971,7 +976,7 @@ private fun LoginView(
                 value = "${country.name} (+${country.dial})",
                 onValueChange = {},
                 enabled = false,
-                label = { Text("Country") },
+                label = { Text(stringResource(R.string.country)) },
                 trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -980,11 +985,11 @@ private fun LoginView(
         OutlinedTextField(
             value = phone,
             onValueChange = { onPhone(it.filter { c -> c.isDigit() || c == '+' || c == ' ' }) },
-            label = { Text("Phone number") },
+            label = { Text(stringResource(R.string.phone_number)) },
             prefix = { Text("+${country.dial} ") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
-            supportingText = { Text("We’ll send a login code to your Telegram app.") },
+            supportingText = { Text(stringResource(R.string.phone_hint)) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(16.dp))
@@ -992,17 +997,17 @@ private fun LoginView(
             onClick = onContinue,
             enabled = isPhoneOk(phone),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Continue") }
+        ) { Text(stringResource(R.string.continue_)) }
     }
     if (countryOpen) {
         com.nimbo.ui.common.RadioDialog(
-            title = "Country",
-            options = TgCountries.map { it.name to "${it.name} (+${it.dial})" },
-            initial = country.name,
+            title = stringResource(R.string.country),
+            options = TgCountries.sortedBy { it.name }.map { it.iso to "${it.name} (+${it.dial})" },
+            initial = country.iso,
             onDismiss = { countryOpen = false },
-            onConfirm = { name ->
+            onConfirm = { iso ->
                 countryOpen = false
-                TgCountries.firstOrNull { it.name == name }?.let(onCountry)
+                TgCountries.firstOrNull { it.iso == iso }?.let(onCountry)
             }
         )
     }
@@ -1019,9 +1024,9 @@ private fun KeysView(onSaved: () -> Unit) {
     var err by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(8.dp))
-        Text("Telegram API keys", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.api_keys_title), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Create them once at my.telegram.org → API development tools. Stored encrypted on this phone only.",
+            stringResource(R.string.api_keys_body),
             style = MaterialTheme.typography.bodyMedium,
             color = cs.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1048,7 +1053,7 @@ private fun KeysView(onSaved: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         )
         if (err) Text(
-            "Check both values.",
+            stringResource(R.string.check_both),
             color = cs.error,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 8.dp)
@@ -1065,7 +1070,7 @@ private fun KeysView(onSaved: () -> Unit) {
                 } else err = true
             },
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Save & connect") }
+        ) { Text(stringResource(R.string.save_connect)) }
     }
 }
 
@@ -1075,9 +1080,9 @@ private fun PasswordView(error: String?, onConfirm: (String) -> Unit) {
     var pw by remember { mutableStateOf("") }
     Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(8.dp))
-        Text("Two-step verification", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.two_step), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "This account has an extra password.",
+            stringResource(R.string.two_step_body),
             style = MaterialTheme.typography.bodyMedium,
             color = cs.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1086,7 +1091,7 @@ private fun PasswordView(error: String?, onConfirm: (String) -> Unit) {
         OutlinedTextField(
             value = pw,
             onValueChange = { pw = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.password)) },
             singleLine = true,
             isError = error != null,
             visualTransformation = PasswordVisualTransformation(),
@@ -1104,7 +1109,7 @@ private fun PasswordView(error: String?, onConfirm: (String) -> Unit) {
             onClick = { onConfirm(pw) },
             enabled = pw.isNotEmpty(),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Unlock") }
+        ) { Text(stringResource(R.string.unlock)) }
     }
 }
 
@@ -1129,9 +1134,9 @@ private fun CodeView(
     }
     Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(8.dp))
-        Text("Enter the code", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.enter_code), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "We sent a 5-digit code to your Telegram app for $phone.",
+            stringResource(R.string.code_sent, phone),
             style = MaterialTheme.typography.bodyMedium,
             color = cs.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1157,16 +1162,16 @@ private fun CodeView(
             }
         }
         if (error) Text(
-            "That code isn’t right. Check it and try again.",
+            stringResource(R.string.code_wrong),
             color = cs.error,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 8.dp)
         )
-        if (verifying) Text("Verifying…", color = cs.primary, modifier = Modifier.padding(top = 8.dp))
+        if (verifying) Text(stringResource(R.string.verifying), color = cs.primary, modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(8.dp))
         Row {
-            androidx.compose.material3.TextButton(onClick = {}) { Text("Resend code") }
-            androidx.compose.material3.TextButton(onClick = onWrongNumber) { Text("Wrong number?") }
+            androidx.compose.material3.TextButton(onClick = {}) { Text(stringResource(R.string.resend_code)) }
+            androidx.compose.material3.TextButton(onClick = onWrongNumber) { Text(stringResource(R.string.wrong_number)) }
         }
     }
 }
@@ -1222,16 +1227,16 @@ private fun FilesView(
             SubHeader(syncing, dir, onDir, showCrumb && flat == null)
             if (searching) EmptyState(
                 icon = Icons.Filled.Search,
-                title = "No results",
-                body = "Nothing matches \"$query\"."
+                title = stringResource(R.string.no_results),
+                body = stringResource(R.string.no_match, query)
             ) else if (flat != null) EmptyState(
                 icon = Icons.Filled.CloudUpload,
-                title = "Nothing here yet",
-                body = "Upload from the Files tab."
+                title = stringResource(R.string.nothing_here),
+                body = stringResource(R.string.upload_from_files)
             ) else EmptyState(
                 icon = Icons.Filled.CloudUpload,
-                title = "Your cloud is empty",
-                body = "Upload audio and other files."
+                title = stringResource(R.string.cloud_empty),
+                body = stringResource(R.string.cloud_empty_body)
             )
         }
     } else if (!grid) {
@@ -1331,7 +1336,7 @@ private fun FilesView(
                         }
                         if (current) EqBars(playing, cs.primary)
                         IconButton(onClick = { onOpenInTg(f) }) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, "Open in Telegram", tint = cs.onSurfaceVariant)
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_in_tg), tint = cs.onSurfaceVariant)
                         }
                     }
                 }
@@ -1377,7 +1382,7 @@ private fun FilesView(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    Icons.Filled.Folder, "Folder",
+                                    Icons.Filled.Folder, stringResource(R.string.folder),
                                     tint = cs.onPrimaryContainer,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1387,7 +1392,7 @@ private fun FilesView(
                             Column(Modifier.weight(1f)) {
                                 Text(label(s), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    "${countRecursive(all, path)} items",
+                                    pluralStringResource(R.plurals.items_count, countRecursive(all, path), countRecursive(all, path)),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = cs.onSecondaryContainer,
                                     maxLines = 1
@@ -1466,7 +1471,7 @@ private fun FilesView(
                                 Text(meta(f), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             IconButton(onClick = { onOpenInTg(f) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.AutoMirrored.Filled.OpenInNew, "Open in Telegram", tint = cs.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_in_tg), tint = cs.onSurfaceVariant, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -1495,7 +1500,7 @@ private fun FolderRow(
         Column(Modifier.weight(1f)) {
             Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
             Text(
-                "$count items",
+                pluralStringResource(R.plurals.items_count, count, count),
                 style = MaterialTheme.typography.bodySmall,
                 color = cs.onSurfaceVariant,
                 maxLines = 1
@@ -1516,6 +1521,7 @@ private fun ManageSheet(
     onDownload: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
+    val res = LocalResources.current
     var mode by remember { mutableStateOf("") }
     var name by remember(f.id) { mutableStateOf(f.showTitle()) }
     var busy by remember { mutableStateOf(false) }
@@ -1526,43 +1532,43 @@ private fun ManageSheet(
             Spacer(Modifier.height(12.dp))
             when (mode) {
                 "rename" -> {
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                    Text("Display title (file in cloud keeps its name).", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.title_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                    Text(stringResource(R.string.rename_hint), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
                     Row {
                         Spacer(Modifier.weight(1f))
-                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text("Cancel") }
+                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text(stringResource(R.string.cancel)) }
                         androidx.compose.material3.Button(onClick = {
                             busy = true
                             TgRepo.renameTitle(f, name.trim()) { ok ->
                                 busy = false
-                                onMsg(if (ok) "Renamed" else "Failed")
+                                onMsg(if (ok) res.getString(R.string.renamed) else res.getString(R.string.failed))
                                 if (ok) onDismiss()
                             }
-                        }, enabled = !busy && name.isNotBlank()) { Text("Save") }
+                        }, enabled = !busy && name.isNotBlank()) { Text(stringResource(R.string.save)) }
                     }
                 }
                 "delete" -> {
-                    Text("Delete from your cloud? No undo.", color = cs.error)
+                    Text(stringResource(R.string.delete_confirm), color = cs.error)
                     Spacer(Modifier.height(8.dp))
                     Row {
                         Spacer(Modifier.weight(1f))
-                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text("Cancel") }
+                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text(stringResource(R.string.cancel)) }
                         androidx.compose.material3.Button(onClick = {
                             busy = true
                             TgRepo.delete(f) { ok ->
                                 busy = false
-                                onMsg(if (ok) "Deleted" else "Failed")
+                                onMsg(if (ok) res.getString(R.string.deleted) else res.getString(R.string.failed))
                                 if (ok) onDismiss()
                             }
-                        }, enabled = !busy) { Text("Delete") }
+                        }, enabled = !busy) { Text(stringResource(R.string.delete)) }
                     }
                 }
                 else -> {
-                    SheetRow("Rename") { mode = "rename" }
-                    SheetRow("Select") { onSelect(f) }
-                    SheetRow("Download") { onDownload(); onDismiss() }
-                    SheetRow("Delete", red = true) { mode = "delete" }
+                    SheetRow(stringResource(R.string.rename)) { mode = "rename" }
+                    SheetRow(stringResource(R.string.select)) { onSelect(f) }
+                    SheetRow(stringResource(R.string.download)) { onDownload(); onDismiss() }
+                    SheetRow(stringResource(R.string.delete), red = true) { mode = "delete" }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -1581,54 +1587,55 @@ private fun FolderSheet(
     onDownload: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
+    val res = LocalResources.current
     var mode by remember { mutableStateOf("") }
     var path by remember(dir) { mutableStateOf(dir) }
     var busy by remember { mutableStateOf(false) }
-    val title = if (dir.isEmpty()) "Root" else dir.substringAfterLast('/')
+    val title = if (dir.isEmpty()) stringResource(R.string.root) else dir.substringAfterLast('/')
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("$count items · retag, no bytes move", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            Text(pluralStringResource(R.plurals.items_count, count, count) + " · " + stringResource(R.string.retag_hint), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
             when (mode) {
                 "rename" -> {
-                    OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text("Folder path") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                    OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text(stringResource(R.string.folder_path)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     folders.filter { it != dir }.take(6).forEach { fo ->
                         androidx.compose.material3.TextButton(onClick = { path = fo }, enabled = !busy) { Text(fo) }
                     }
                     Row {
                         Spacer(Modifier.weight(1f))
-                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text("Cancel") }
+                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text(stringResource(R.string.cancel)) }
                         androidx.compose.material3.Button(onClick = {
                             busy = true
                             TgRepo.renameFolder(dir, path) { ok ->
                                 busy = false
-                                onMsg(if (ok) "Folder moved" else "Failed")
+                                onMsg(if (ok) res.getString(R.string.folder_moved) else res.getString(R.string.failed))
                                 if (ok) onDismiss()
                             }
-                        }, enabled = !busy && path.isNotBlank()) { Text("Save") }
+                        }, enabled = !busy && path.isNotBlank()) { Text(stringResource(R.string.save)) }
                     }
                 }
                 "delete" -> {
-                    Text("Delete folder and its $count files? No undo.", color = cs.error)
+                    Text(pluralStringResource(R.plurals.delete_folder_confirm, count, count), color = cs.error)
                     Spacer(Modifier.height(8.dp))
                     Row {
                         Spacer(Modifier.weight(1f))
-                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text("Cancel") }
+                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text(stringResource(R.string.cancel)) }
                         androidx.compose.material3.Button(onClick = {
                             busy = true
                             TgRepo.deleteFolder(dir) { ok ->
                                 busy = false
-                                onMsg(if (ok) "Folder deleted" else "Failed")
+                                onMsg(if (ok) res.getString(R.string.folder_deleted) else res.getString(R.string.failed))
                                 if (ok) onDismiss()
                             }
-                        }, enabled = !busy) { Text("Delete") }
+                        }, enabled = !busy) { Text(stringResource(R.string.delete)) }
                     }
                 }
                 else -> {
-                    SheetRow("Rename / move") { mode = "rename" }
-                    SheetRow("Download folder") { onDownload(); onDismiss() }
-                    SheetRow("Delete folder", red = true) { mode = "delete" }
+                    SheetRow(stringResource(R.string.rename_move)) { mode = "rename" }
+                    SheetRow(stringResource(R.string.download_folder)) { onDownload(); onDismiss() }
+                    SheetRow(stringResource(R.string.delete_folder), red = true) { mode = "delete" }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -1650,8 +1657,6 @@ private fun SheetRow(label: String, red: Boolean = false, onClick: () -> Unit) {
         )
     }
 }
-
-// Toggle lista/grid con tints explícitos (un solo uso, queda aquí).
 
 // Play redondo prototipo: filled cuando es el actual, tonal resto.
 @Composable

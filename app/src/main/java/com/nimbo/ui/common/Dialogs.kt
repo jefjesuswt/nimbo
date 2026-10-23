@@ -1,5 +1,7 @@
 package com.nimbo.ui.common
 
+import androidx.compose.ui.res.stringResource
+import com.nimbo.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,7 +51,7 @@ fun RadioDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(sel) }) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        confirmButton = { TextButton(onClick = { onConfirm(sel) }) { Text(stringResource(R.string.ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }

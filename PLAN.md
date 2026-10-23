@@ -19,5 +19,7 @@
 - [x] Landscape: rotar no pierde estado (configChanges), player en 2 columnas, grid adaptativo
 - [x] Búsqueda en topbar (todo el árbol, sin acentos, AND por palabras, en memoria)
 - [ ] Verificar landscape + búsqueda en celu
+- [x] i18n: en (base) + es neutro, pt-BR, fr, ja; selector de idioma en More (Android 13+) + Ajustes del sistema
+- [ ] Verificar idiomas en celu (tabs, player, login, plurales)
 - [ ] 7h2 Navegar/reproducir dentro de comprimidos (necesita volver a meter Commons Compress)
 - [ ] Antes de publicar: `applicationId` definitivo (único en Play), R8 con keep rules de TDLib
