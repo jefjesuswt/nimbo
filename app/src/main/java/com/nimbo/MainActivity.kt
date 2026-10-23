@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -28,6 +29,8 @@ import com.nimbo.ui.telegram.ViewerNav
 import com.nimbo.ui.theme.NimboTheme
 import com.nimbo.ui.theme.Seed
 
+// Rotar no recrea la Activity (configChanges en el manifest):
+// Compose recompone y conserva carpeta, player, visor y selección.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +113,8 @@ fun NimboApp(
             }
         }
     ) { pad ->
-        NavHost(nav, startDestination = "cloud", Modifier.padding(pad)) {
+        // Horizontal: el notch queda a un lado, no tapa contenido.
+        NavHost(nav, startDestination = "cloud", Modifier.padding(pad).displayCutoutPadding()) {
             composable("cloud") {
                 TelegramRoute(onSettings = { nav.navigate("settings") })
             }

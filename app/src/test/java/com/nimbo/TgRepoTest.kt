@@ -318,6 +318,23 @@ class TgRepoTest {
         assertEquals("m", parseFolder(c))
     }
 
+    @Test fun search() {
+        val a = com.nimbo.ui.telegram.TgFile("a", "Canción Triste.mp3", TgKind.AUDIO, "", folder = "music/rock", artist = "Some Artist")
+        val b = com.nimbo.ui.telegram.TgFile("b", "notes.txt", TgKind.DOC, "", folder = "docs")
+        val keyed = listOf(a, b).map { it to com.nimbo.ui.telegram.searchKey(it) }
+        fun q(s: String) = com.nimbo.ui.telegram.searchIn(keyed, com.nimbo.ui.telegram.searchTerms(s)).map { it.id }
+        // Sin acentos ni mayúsculas, por artista, varias palabras = AND.
+        assertEquals(listOf("a"), q("CANCION"))
+        assertEquals(listOf("a"), q("artist"))
+        assertEquals(listOf("a"), q("triste some"))
+        assertEquals(emptyList<String>(), q("triste notes"))
+        assertEquals(emptyList<String>(), q("   "))
+        assertEquals(
+            setOf("docs", "music", "music/rock", "void"),
+            com.nimbo.ui.telegram.allFolders(listOf(a, b), setOf("void"))
+        )
+    }
+
     @Test fun folderArt() {
         val noThumb = com.nimbo.ui.telegram.TgFile("a", "x.mp3", TgKind.AUDIO, "", folder = "m")
         val withThumb = com.nimbo.ui.telegram.TgFile("b", "y.mp3", TgKind.AUDIO, "", folder = "m", thumbFileId = 5)

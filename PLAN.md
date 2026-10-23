@@ -16,6 +16,8 @@
 - [ ] 7a verificar en celu (login real + sesión persiste al reabrir)
 - [ ] 7b verificar en celu (archivos reales, refresh, offline desde índice)
 - [ ] 7c verificar en celu (subir mp3 chico → card % → lista + Telegram oficial)
-- [ ] Landscape decente en toda la app (hoy solo portrait sirve)
+- [x] Landscape: rotar no pierde estado (configChanges), player en 2 columnas, grid adaptativo
+- [x] Búsqueda en topbar (todo el árbol, sin acentos, AND por palabras, en memoria)
+- [ ] Verificar landscape + búsqueda en celu
 - [ ] 7h2 Navegar/reproducir dentro de comprimidos (necesita volver a meter Commons Compress)
 - [ ] Antes de publicar: `applicationId` definitivo (único en Play), R8 con keep rules de TDLib

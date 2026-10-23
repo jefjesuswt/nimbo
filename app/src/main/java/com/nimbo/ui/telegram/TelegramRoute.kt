@@ -213,9 +213,19 @@ fun TelegramRoute(onSettings: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled = textFile != null) { textFile = null }
     // Selección activa: el back la limpia antes de navegar.
     androidx.activity.compose.BackHandler(enabled = selection.isNotEmpty()) { selection = emptySet() }
-    // Carpeta al último: si hay player/visor/lector/diálogo, el back no navega.
+    // Búsqueda (lupa del topbar): filtra todo el árbol mientras escribes.
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    fun closeSearch() {
+        searching = false
+        query = ""
+    }
     androidx.activity.compose.BackHandler(
-        enabled = view == 2 && dir.isNotEmpty() && viewerIdx == null && textFile == null && !sheet && manageFile == null && manageDir == null
+        enabled = searching && viewerIdx == null && textFile == null && !sheet
+    ) { closeSearch() }
+    // Carpeta al último: si hay player/visor/lector/diálogo/búsqueda, el back no navega.
+    androidx.activity.compose.BackHandler(
+        enabled = view == 2 && dir.isNotEmpty() && !searching && viewerIdx == null && textFile == null && !sheet && manageFile == null && manageDir == null
     ) {
         dir = parentOf(dir)
     }
@@ -340,6 +350,9 @@ fun TelegramRoute(onSettings: () -> Unit) {
                         }
                     }) { Icon(Icons.Filled.ContentPaste, "Paste here") }
                 }
+                if (view == 2 && !searching) {
+                    IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, "Search") }
+                }
                 IconButton(onClick = { newFolder = true }) { Icon(Icons.Filled.CreateNewFolder, "New folder") }
                 IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, "Settings") }
             }
@@ -391,6 +404,26 @@ fun TelegramRoute(onSettings: () -> Unit) {
                     onConfirm = { TgClient.sendPassword(it) }
                 )
                 2 -> Column(Modifier.fillMaxSize()) {
+                    if (searching) {
+                        val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+                        val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                        LaunchedEffect(Unit) { focus.requestFocus() }
+                        androidx.compose.material3.OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = { Text("Search files and folders") },
+                            leadingIcon = { Icon(Icons.Filled.Search, null) },
+                            trailingIcon = {
+                                IconButton(onClick = { closeSearch() }) { Icon(Icons.Filled.Close, "Close search") }
+                            },
+                            singleLine = true,
+                            shape = CircleShape,
+                            keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { keyboard?.hide() }),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                                .focusRequester(focus)
+                        )
+                    }
                     // Un pending por lote: corriendo arriba, en cola debajo.
                     val batches by TgRepo.batches.collectAsState()
                     var detailId by remember { mutableStateOf<Long?>(null) }
@@ -451,7 +484,9 @@ fun TelegramRoute(onSettings: () -> Unit) {
                     all = cloud,
                     filter = filter,
                     dir = dir,
-                    onDir = { dir = it },
+                    // Abrir carpeta desde la búsqueda: navega y cierra la búsqueda.
+                    onDir = { dir = it; closeSearch() },
+                    query = query,
                     onFilter = { filter = it },
                     grid = grid,
                     onGrid = { grid = it },
@@ -487,7 +522,7 @@ fun TelegramRoute(onSettings: () -> Unit) {
                             }
                             f.kind == TgKind.DOC && isTextFile(f.name) -> textFile = f
                             else -> scope.launch {
-                                if (!TgView.open(ctx, f)) snack.showSnackbar("No se pudo abrir ${f.showTitle()}")
+                                if (!TgView.open(ctx, f)) snack.showSnackbar("Couldn't open ${f.showTitle()}")
                             }
                         }
                     },
@@ -1062,18 +1097,34 @@ private fun FilesView(
     onRefresh: () -> Unit = {},
     keeps: Set<String> = emptySet(),
     selection: Set<String> = emptySet(),
-    onToggle: (TgFile) -> Unit = {}
+    onToggle: (TgFile) -> Unit = {},
+    query: String = ""
 ) {
     val cs = MaterialTheme.colorScheme
-    // 7f: carpetas primero, luego archivos propios con filtro.
-    val (subs, own) = childrenOf(all, dir, keeps)
-    val files = filterTgFiles(own, filter)
+    // Búsqueda: claves normalizadas una vez por cambio de nube, no por tecla.
+    val terms = remember(query) { searchTerms(query) }
+    val searching = terms.isNotEmpty()
+    val keyed = remember(all) { all.map { it to searchKey(it) } }
+    val folderKeyed = remember(all, keeps) {
+        allFolders(all, keeps).map { it to normSearch(it.substringAfterLast('/')) }
+    }
+    // 7f: carpetas primero (rutas completas), luego archivos con filtro.
+    // Buscando: todo el árbol, no solo el dir actual.
+    val (subNames, own) = childrenOf(all, dir, keeps)
+    val subs = if (searching) searchIn(folderKeyed, terms)
+        else subNames.map { if (dir.isEmpty()) it else "$dir/$it" }
+    val files = filterTgFiles(if (searching) searchIn(keyed, terms) else own, filter)
     val showCrumb = dir.isNotEmpty() || subs.isNotEmpty()
-    fun sub(path: String) = if (dir.isEmpty()) path else "$dir/$path"
+    fun label(path: String) = if (searching) path else path.substringAfterLast('/')
+    fun meta(f: TgFile) = if (searching && f.folder.isNotEmpty()) "${f.folder} · ${f.meta}" else f.meta
     if (subs.isEmpty() && files.isEmpty()) {
         Column(Modifier.fillMaxWidth()) {
             SubHeader(tgStats(all), syncing, filter, onFilter, grid, onGrid, onRefresh, dir, onDir, showCrumb)
-            EmptyState(
+            if (searching) EmptyState(
+                icon = Icons.Filled.Search,
+                title = "No results",
+                body = "Nothing matches \"$query\"."
+            ) else EmptyState(
                 icon = Icons.Filled.CloudUpload,
                 title = "Your cloud is empty",
                 body = "Upload audio and other files."
@@ -1081,7 +1132,7 @@ private fun FilesView(
         }
     } else if (!grid) {
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-        LaunchedEffect(dir) { listState.scrollToItem(0) }
+        LaunchedEffect(dir, query) { listState.scrollToItem(0) }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -1090,11 +1141,11 @@ private fun FilesView(
             stickyHeader { SubHeader(tgStats(all), syncing, filter, onFilter, grid, onGrid, onRefresh, dir, onDir, showCrumb) }
             items(subs, key = { "d$it" }) { s ->
                 FolderRow(
-                    name = s,
-                    count = countRecursive(all, sub(s)),
-                    art = remember(all, sub(s)) { folderArtAudio(all, sub(s)) },
-                    onOpen = { onDir(sub(s)) },
-                    onManage = { onManageDir(sub(s)) }
+                    name = label(s),
+                    count = countRecursive(all, s),
+                    art = remember(all, s) { folderArtAudio(all, s) },
+                    onOpen = { onDir(s) },
+                    onManage = { onManageDir(s) }
                 )
             }
                 items(files, key = { it.id }) { f ->
@@ -1166,7 +1217,7 @@ private fun FilesView(
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(f.showTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                            Text(f.meta, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(meta(f), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (f.kind == TgKind.AUDIO) {
                                 WaveBars(
                                     seed = f.id,
@@ -1188,17 +1239,18 @@ private fun FilesView(
             Column(Modifier.fillMaxSize()) {
                 SubHeader(tgStats(all), syncing, filter, onFilter, grid, onGrid, onRefresh, dir, onDir, showCrumb)
                 val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
-                LaunchedEffect(dir) { gridState.scrollToItem(0) }
+                LaunchedEffect(dir, query) { gridState.scrollToItem(0) }
+                // Adaptive: 2 columnas en vertical, 4-5 en horizontal.
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Adaptive(160.dp),
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 160.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(subs, key = { "d$it" }) { s ->
-                    val path = sub(s)
+                    val path = s
                     Card(
                         colors = CardDefaults.cardColors(containerColor = cs.secondaryContainer),
                         shape = MaterialTheme.shapes.large,
@@ -1234,7 +1286,7 @@ private fun FilesView(
                         }
                         Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(s, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+                                Text(label(s), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     "${countRecursive(all, path)} items",
                                     style = MaterialTheme.typography.bodySmall,
@@ -1312,7 +1364,7 @@ private fun FilesView(
                             Column(Modifier.weight(1f)) {
                                 // minLines = 2 fija altura: cards uniformes aunque título corte.
                                 Text(f.showTitle(), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
-                                Text(f.meta, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(meta(f), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             IconButton(onClick = { onOpenInTg(f) }, modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.AutoMirrored.Filled.OpenInNew, "Open in Telegram", tint = cs.onSurfaceVariant, modifier = Modifier.size(18.dp))

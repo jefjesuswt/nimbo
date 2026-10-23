@@ -182,6 +182,35 @@ fun applyCoverLinks(files: List<TgFile>, links: Map<String, Int>): List<TgFile> 
         if (id != null && id != 0) f.copy(thumbFileId = id) else f
     }
 
+// Búsqueda: sin acentos ni mayúsculas; cada palabra debe aparecer (AND).
+fun normSearch(s: String): String =
+    java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "").lowercase()
+
+fun searchTerms(q: String): List<String> = normSearch(q).split(' ').filter { it.isNotEmpty() }
+
+fun searchKey(f: TgFile): String = normSearch("${f.name} ${f.title} ${f.artist}")
+
+// Todas las rutas de carpeta, intermedias y vacías incluidas.
+fun allFolders(files: List<TgFile>, extra: Set<String> = emptySet()): Set<String> {
+    val out = sortedSetOf<String>()
+    (files.map { it.folder } + extra).forEach { f ->
+        var p = f
+        while (p.isNotEmpty()) {
+            out.add(p)
+            p = parentOf(p)
+        }
+    }
+    return out
+}
+
+// ponytail: escaneo lineal en memoria sobre claves precalculadas (~2000
+// filas, <1ms; más rápido que ir a SQLite por tecla). FTS4 en TgIndex si
+// la nube pasa de ~50k archivos.
+fun <T> searchIn(keyed: List<Pair<T, String>>, terms: List<String>): List<T> =
+    if (terms.isEmpty()) emptyList()
+    else keyed.filter { (_, k) -> terms.all { it in k } }.map { it.first }
+
 // "1:12:08" / "48:22".
 fun fmtDur(totalSec: Int): String {
     val h = totalSec / 3600

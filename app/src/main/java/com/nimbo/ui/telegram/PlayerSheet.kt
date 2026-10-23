@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -116,10 +117,10 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
     val fav = f.id in favs
     val speedLb = if (speed % 1f == 0f) "${speed.toInt()}×" else "${speed}×"
 
-    Column(
-        Modifier.fillMaxSize().background(cs.surface).verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 8.dp)
-    ) {
+    // Horizontal: arte a la izquierda, controles + cola a la derecha.
+    val landscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val topBar: @Composable () -> Unit = {
         // Top: minimizar + contexto + menú.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) { Icon(Icons.Filled.KeyboardArrowDown, "Minimize") }
@@ -158,12 +159,12 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
-
+    }
+    val artBox: @Composable (Modifier) -> Unit = { m ->
         // Arte: video 16:9, si no cover o glifo rotando con tono por índice.
         if (isVideo) {
             Box(
-                Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                m.aspectRatio(16f / 9f)
                     .clip(MaterialTheme.shapes.extraLarge).background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
@@ -208,7 +209,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 label = "rot"
             )
             Box(
-                Modifier.fillMaxWidth().aspectRatio(1f)
+                m.aspectRatio(1f)
                     .clip(MaterialTheme.shapes.extraLarge).background(bg),
                 contentAlignment = Alignment.Center
             ) {
@@ -230,8 +231,8 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 }
             }
         }
-        Spacer(Modifier.height(24.dp))
-
+    }
+    val panel: @Composable () -> Unit = {
         // Meta + fav.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -288,7 +289,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.Filled.SkipPrevious, "Previous", tint = cs.onSecondaryContainer, modifier = Modifier.size(28.dp)) }
             androidx.compose.foundation.layout.Box(
-                Modifier.weight(1f).height(96.dp)
+                Modifier.weight(1f).height(if (landscape) 72.dp else 96.dp)
                     .clip(if (playing) MaterialTheme.shapes.large else CircleShape)
                     .background(if (playing) cs.primaryContainer else cs.primary)
                     .clickableNoRipple { TgPlayer.toggle() },
@@ -370,6 +371,33 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             )
         }
         Spacer(Modifier.height(32.dp))
+    }
+
+    if (landscape) {
+        Row(
+            Modifier.fillMaxSize().background(cs.surface).padding(horizontal = 24.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                artBox(if (isVideo) Modifier.fillMaxWidth() else Modifier.fillMaxHeight())
+            }
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                topBar()
+                Spacer(Modifier.height(8.dp))
+                panel()
+            }
+        }
+    } else {
+        Column(
+            Modifier.fillMaxSize().background(cs.surface).verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        ) {
+            topBar()
+            Spacer(Modifier.height(8.dp))
+            artBox(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(24.dp))
+            panel()
+        }
     }
 
     if (details) {
