@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shuffle
@@ -265,6 +266,15 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
             }
         }
 
+        // Retomado (spec 9a): avisa y deja empezar de cero.
+        val resumed by TgPlayer.resumedFrom.collectAsState()
+        if (resumed > 0) {
+            androidx.compose.material3.AssistChip(
+                onClick = { TgPlayer.seekTo(0) },
+                label = { Text("Resumed at ${fmtDur((resumed / 1000).toInt())} · Start over") },
+                leadingIcon = { Icon(Icons.Filled.Replay, null) }
+            )
+        }
         // Seek.
         Slider(
             value = shown,

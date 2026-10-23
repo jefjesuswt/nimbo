@@ -249,6 +249,14 @@ object TgRepo {
         refresh()
     }
 
+    // Posición de reproducción (spec 9a). Escritura en IO, lectura directa
+    // (el player la pide ya desde un hilo IO).
+    fun savePos(messageId: Long, ms: Long) {
+        scope.launch { runCatching { index?.savePos(messageId, ms) } }
+    }
+
+    fun posOf(messageId: Long): Long = runCatching { index?.pos(messageId) ?: 0L }.getOrDefault(0L)
+
     // Cover deducida (hash): actualiza memoria + índice para no re-bajar.
     fun noteCover(messageId: Long, hash: String) {
         scope.launch {

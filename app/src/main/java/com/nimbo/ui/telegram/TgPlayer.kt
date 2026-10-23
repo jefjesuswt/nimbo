@@ -32,6 +32,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 
 // Puras del prototipo (ciclos repeat/speed/timer). Testeables.
+// Desde dónde retomar: nada en cortos (< 3 min) ni si casi terminó (< 20 s).
+fun resumeFrom(posMs: Long, durMs: Long): Long = when {
+    posMs <= 0L -> 0L
+    durMs in 1 until 3 * 60_000L -> 0L
+    durMs > 0 && durMs - posMs < 20_000L -> 0L
+    else -> posMs
+}
+
 fun nextRepeat(cur: String): String = when (cur) {
     "off" -> "all"
     "all" -> "one"
@@ -221,6 +229,9 @@ object TgPlayer {
     private val _favs = MutableStateFlow<Set<String>>(emptySet())
     val favs: StateFlow<Set<String>> = _favs
     // Descarga del track actual 0..1 (null = sin descarga).
+    // Posición desde la que se retomó el track actual (0 = desde el inicio).
+    private val _resumedFrom = MutableStateFlow(0L)
+    val resumedFrom: StateFlow<Long> = _resumedFrom
     private val _dlProgress = MutableStateFlow<Float?>(null)
     val dlProgress: StateFlow<Float?> = _dlProgress
     private var dlJob: Job? = null
@@ -255,6 +266,7 @@ object TgPlayer {
             p.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(on: Boolean) {
                     _playing.value = on
+                    if (!on) savePos()
                     if (on) startTicker() else ticker?.cancel()
                 }
 
@@ -281,6 +293,7 @@ object TgPlayer {
     }
 
     private fun onTrackEnded() {
+        _track.value?.let { TgRepo.savePos(it.messageId, 0L) }
         val n = _queue.value.size
         if (n == 0) {
             _playing.value = false
@@ -335,8 +348,10 @@ object TgPlayer {
 
     private fun loadCurrent() {
         val f = _queue.value.getOrNull(_index.value) ?: return
+        savePos()
         _track.value = f
         _posMs.value = 0L
+        _resumedFrom.value = 0L
         _durMs.value = 0L
         dlJob?.cancel()
         _buffering.value = true
@@ -346,10 +361,12 @@ object TgPlayer {
                 val src = TgDownload.awaitFile(f.fileId) { p -> _dlProgress.value = p }
                     ?: throw IOException("download")
                 val dst = stageCopy(src, f)
+                val start = resumeFrom(TgRepo.posOf(f.messageId), f.durSec * 1000L)
                 withContext(Dispatchers.Main) {
                     if (_track.value?.messageId != f.messageId) return@withContext
                     val p = ensure()
-                    p.setMediaItem(toItem(f, dst), 0)
+                    p.setMediaItem(toItem(f, dst), start)
+                    _resumedFrom.value = start
                     p.setPlaybackSpeed(_speed.value)
                     p.prepare()
                     p.playWhenReady = true
@@ -428,6 +445,15 @@ object TgPlayer {
     fun seekTo(ms: Long) {
         player?.seekTo(ms)
         _posMs.value = ms
+        _resumedFrom.value = 0L
+    }
+
+    // Guarda la posición del track actual (pausa, cambio, stop, cada 10 s).
+    private fun savePos() {
+        val f = _track.value ?: return
+        val p = player ?: return
+        if (p.playbackState == Player.STATE_IDLE) return
+        TgRepo.savePos(f.messageId, p.currentPosition.coerceAtLeast(0L))
     }
 
     fun playAt(i: Int) {
@@ -474,6 +500,7 @@ object TgPlayer {
     }
 
     fun stop() {
+        savePos()
         timerJob?.cancel()
         ticker?.cancel()
         dlJob?.cancel()
@@ -504,10 +531,12 @@ object TgPlayer {
     private fun startTicker() {
         ticker?.cancel()
         ticker = scope.launch {
+            var n = 0
             while (true) {
                 val p = player ?: break
                 _posMs.value = p.currentPosition.coerceAtLeast(0L)
                 if (p.duration > 0) _durMs.value = p.duration
+                if (++n % 20 == 0) savePos()
                 delay(500)
             }
         }

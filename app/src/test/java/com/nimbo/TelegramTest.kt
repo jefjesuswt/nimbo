@@ -11,6 +11,7 @@ import com.nimbo.ui.telegram.isCodeOk
 import com.nimbo.ui.telegram.isPhoneOk
 import com.nimbo.ui.telegram.isTextFile
 import com.nimbo.ui.telegram.nextRepeat
+import com.nimbo.ui.telegram.resumeFrom
 import com.nimbo.ui.telegram.nextSpeed
 import com.nimbo.ui.telegram.nextTimer
 import org.junit.Test
@@ -82,5 +83,14 @@ class TelegramTest {
         assertEquals(false, isTextFile("song.mp3"))
         assertEquals(false, isTextFile("noext"))
         assertEquals(false, isTextFile("pic.jpg"))
+    }
+
+    @Test fun resume() {
+        val min = 60_000L
+        assertEquals(0L, resumeFrom(90_000, 2 * min))          // corto: siempre desde 0
+        assertEquals(90_000L, resumeFrom(90_000, 40 * min))    // largo: retoma
+        assertEquals(0L, resumeFrom(40 * min - 10_000, 40 * min)) // casi terminado
+        assertEquals(0L, resumeFrom(0, 40 * min))
+        assertEquals(5 * min, resumeFrom(5 * min, 0))          // duración desconocida: retoma
     }
 }

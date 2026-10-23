@@ -8,24 +8,39 @@ import android.database.sqlite.SQLiteOpenHelper
 // Índice local de la nube. Fuente verdad = captions (TDLib); esto solo
 // acelera carpetas/búsqueda/offline. Sin Room: una tabla, cero deps.
 class TgIndex(ctx: Context) :
-    SQLiteOpenHelper(ctx.applicationContext, "tg_index", null, 4) {
+    SQLiteOpenHelper(ctx.applicationContext, "tg_index", null, 5) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
-            "CREATE TABLE tg_files(" +
+            "CREATE TABLE IF NOT EXISTS tg_files(" +
                 "message_id INTEGER PRIMARY KEY, file_id INTEGER, name TEXT, " +
                 "kind TEXT, size INTEGER, date INTEGER, folder TEXT, " +
                 "title TEXT, artist TEXT, thumb_file INTEGER, cover_hash TEXT, " +
                 "dur_sec INTEGER)"
         )
-        db.execSQL("CREATE INDEX idx_folder ON tg_files(folder)")
-        db.execSQL("CREATE INDEX idx_name ON tg_files(name)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_folder ON tg_files(folder)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_name ON tg_files(name)")
+        // Aparte de tg_files: upsert hace REPLACE y onUpgrade la tira (se
+        // reconstruye de la nube); las posiciones no se pueden reconstruir.
+        db.execSQL("CREATE TABLE IF NOT EXISTS positions(message_id INTEGER PRIMARY KEY, pos_ms INTEGER)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) {
         db.execSQL("DROP TABLE IF EXISTS tg_files")
         onCreate(db)
     }
+
+    // Continuar donde lo dejaste (spec 9a).
+    fun savePos(messageId: Long, ms: Long) {
+        writableDatabase.execSQL(
+            "INSERT OR REPLACE INTO positions(message_id, pos_ms) VALUES(?, ?)",
+            arrayOf<Any>(messageId, ms)
+        )
+    }
+
+    fun pos(messageId: Long): Long =
+        readableDatabase.rawQuery("SELECT pos_ms FROM positions WHERE message_id=?", arrayOf(messageId.toString()))
+            .use { if (it.moveToFirst()) it.getLong(0) else 0L }
 
     fun upsert(fs: List<TgFile>) {
         if (fs.isEmpty()) return
