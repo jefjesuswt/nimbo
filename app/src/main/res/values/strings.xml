@@ -45,7 +45,6 @@
     <string name="settings_about">About</string>
     <string name="settings_about_nimbo">About Nimbo</string>
     <string name="version">Version %1$s</string>
-    <string name="about_body">Your files, music and photos in your own Telegram Saved Messages. Not affiliated with Telegram.</string>
     <string name="tg_connected">Connected to Telegram cloud</string>
     <string name="tg_login_progress">Login in progress…</string>
     <string name="tg_keys_saved">Keys saved, not connected</string>
@@ -236,4 +235,9 @@
     <string name="pip">Picture-in-picture</string>
     <string name="brightness_pct">Brightness %1$d%%</string>
     <string name="volume_pct">Volume %1$d%%</string>
+    <string name="about_tagline">Your files, music and photos in your own Telegram Saved Messages.</string>
+    <string name="about_source">Source code</string>
+    <string name="about_made_by">Made by %1$s</string>
+    <string name="about_built_with">Built with TDLib, Media3 and Jetpack Compose</string>
+    <string name="about_not_affiliated">Not affiliated with Telegram.</string>
 </resources>

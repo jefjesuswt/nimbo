@@ -44,7 +44,6 @@
     <string name="settings_about">このアプリについて</string>
     <string name="settings_about_nimbo">Nimbo について</string>
     <string name="version">バージョン %1$s</string>
-    <string name="about_body">ファイル、音楽、写真を Telegram の「保存したメッセージ」に。Telegram とは関係ありません。</string>
     <string name="tg_connected">Telegram クラウドに接続済み</string>
     <string name="tg_login_progress">ログイン中…</string>
     <string name="tg_keys_saved">キーは保存済み・未接続</string>
@@ -226,4 +225,9 @@
     <string name="pip">ピクチャー イン ピクチャー</string>
     <string name="brightness_pct">明るさ %1$d%%</string>
     <string name="volume_pct">音量 %1$d%%</string>
+    <string name="about_tagline">ファイル、音楽、写真を Telegram の「保存したメッセージ」に。</string>
+    <string name="about_source">ソースコード</string>
+    <string name="about_made_by">作者: %1$s</string>
+    <string name="about_built_with">TDLib・Media3・Jetpack Compose で開発</string>
+    <string name="about_not_affiliated">Telegram とは関係ありません。</string>
 </resources>

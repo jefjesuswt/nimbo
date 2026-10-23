@@ -151,7 +151,7 @@ fun SettingsRoute(
                     )
                 }
                 Group(stringResource(R.string.settings_about)) {
-                    PrefRow(icon = Icons.Filled.Info, title = stringResource(R.string.settings_about_nimbo), sub = stringResource(R.string.version, "1.0")) {
+                    PrefRow(icon = Icons.Filled.Info, title = stringResource(R.string.settings_about_nimbo), sub = stringResource(R.string.version, remember { appVersion(ctx) })) {
                         aboutDlg = true
                     }
                 }
@@ -184,14 +184,7 @@ fun SettingsRoute(
             }
         )
     }
-    if (aboutDlg) {
-        AlertDialog(
-            onDismissRequest = { aboutDlg = false },
-            title = { Text("Nimbo") },
-            text = { Text(stringResource(R.string.version, "1.0") + "\n" + stringResource(R.string.about_body)) },
-            confirmButton = { TextButton(onClick = { aboutDlg = false }) { Text(stringResource(R.string.ok)) } }
-        )
-    }
+    if (aboutDlg) AboutDialog(onDismiss = { aboutDlg = false })
 }
 
 // Cada idioma con su propio nombre. "" = el del sistema.
@@ -329,7 +322,7 @@ private fun PrefRow(
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(sub, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+            if (sub.isNotEmpty()) Text(sub, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
         }
         trailing?.invoke()
         trailIcon?.let { Icon(it, null, tint = cs.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
