@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Icono temático (Android 13+): solo la nube. -->
+<!-- Icono temático (Android 13+): el launcher lo tiñe con los colores
+     Material You del sistema. Solo cuenta el alfa: disco opaco, nube hueca. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,5 +8,6 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M40,53a14,14 0 1,0 28,0a14,14 0 1,0 -28,0z M31,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M59,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M40,59v9h28v-9z" />
+        android:fillType="evenOdd"
+        android:pathData="M54,23a31,31 0 1,1 0,62a31,31 0 1,1 0,-62z M43.55,63.35a5.5,5.5 0 0 1 0,-11a9.9,9.9 0 0 1 18.7,-2.2a6.6,6.6 0 0 1 1.1,13.2z" />
 </vector>

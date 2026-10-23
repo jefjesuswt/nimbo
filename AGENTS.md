@@ -15,7 +15,7 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 ## Estructura
 - `app/src/main/java/com/nimbo/` — `MainActivity.kt` (nube + settings, sin navbar), `ui/telegram/`, `ui/settings/`, `ui/common/`, `ui/theme/`
 - Dynamic color: `dynamicLightColorScheme()` / `dynamicDarkColorScheme()` en Android 12+, fallback con seed.
-- Logo: `docs/logo.svg`; icono adaptativo en `res/drawable/ic_launcher_*` (+ monochrome).
+- Logo: disco con agujero de nube (`docs/logo.svg`), blanco y negro. Icono adaptativo en `res/drawable/ic_launcher_*`; la capa `monochrome` (Android 13+) la tiñe el launcher con Material You si el usuario activa iconos temáticos. Solo cuenta el alfa: el agujero va con `evenOdd`, nunca pintado encima.
 
 ## Reglas
 - Solo componentes M3 estándar. Sin colores hardcodeados: `MaterialTheme.colorScheme`.

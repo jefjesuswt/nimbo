@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Nimbo: nube blanca con un play recortado (tu nube de archivos y música). Zona segura 66dp. -->
+<!-- Nimbo: disco blanco con el agujero central en forma de nube (evenOdd:
+     el agujero es transparente y deja ver el fondo). Zona segura 66dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M40,53a14,14 0 1,0 28,0a14,14 0 1,0 -28,0z M31,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M59,59a9,9 0 1,0 18,0a9,9 0 1,0 -18,0z M40,59v9h28v-9z" />
+        android:fillColor="#FFF5F5F5"
+        android:fillType="evenOdd"
+        android:pathData="M54,23a31,31 0 1,1 0,62a31,31 0 1,1 0,-62z M43.55,63.35a5.5,5.5 0 0 1 0,-11a9.9,9.9 0 0 1 18.7,-2.2a6.6,6.6 0 0 1 1.1,13.2z" />
     <path
-        android:fillColor="#FF3A55C9"
-        android:pathData="M49.5,51L49.5,64L61,57.5z"
-        android:strokeColor="#FF3A55C9"
-        android:strokeWidth="2"
-        android:strokeLineJoin="round" />
+        android:pathData="M54,30a24,24 0 1,1 0,48a24,24 0 1,1 0,-48z"
+        android:strokeColor="#1F000000"
+        android:strokeWidth="1.2" />
 </vector>
