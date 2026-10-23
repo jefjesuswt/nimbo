@@ -214,6 +214,29 @@ fun albumInfo(a: TgAlbum, audio: Boolean): String {
     return parts.joinToString(" · ")
 }
 
+// Orden (spec 9d): "name" | "date" | "size" | "dur", clave "by:asc|desc".
+fun defaultSort(tab: String): String = if (tab == "audio") "name:asc" else "date:desc"
+
+fun sortTg(files: List<TgFile>, key: String): List<TgFile> {
+    val c: Comparator<TgFile> = when (key.substringBefore(':')) {
+        "date" -> compareBy { it.dateSec }
+        "size" -> compareBy { it.sizeBytes }
+        "dur" -> compareBy { it.durSec }
+        else -> compareBy { it.showTitle().lowercase() }
+    }
+    return files.sortedWith(if (key.endsWith(":desc")) c.reversed() else c)
+}
+
+fun sortAlbums(albums: List<TgAlbum>, key: String): List<TgAlbum> {
+    val c: Comparator<TgAlbum> = when (key.substringBefore(':')) {
+        "date" -> compareBy { it.lastDate }
+        "size" -> compareBy { it.sizeBytes }
+        "dur" -> compareBy { it.durSec }
+        else -> compareBy { it.name.lowercase() }
+    }
+    return albums.sortedWith(if (key.endsWith(":desc")) c.reversed() else c)
+}
+
 // Búsqueda: sin acentos ni mayúsculas; cada palabra debe aparecer (AND).
 fun normSearch(s: String): String =
     java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)

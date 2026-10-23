@@ -173,7 +173,6 @@
     <string name="title_label">Título</string>
     <string name="rename_hint">Título visible (el archivo en la nube conserva su nombre).</string>
     <string name="renamed">Renombrado</string>
-    <string name="delete_confirm">¿Eliminar de tu nube? No se puede deshacer.</string>
     <string name="rename">Renombrar</string>
     <string name="select">Seleccionar</string>
     <string name="retag_hint">solo cambia la etiqueta, no se mueven datos</string>
@@ -222,5 +221,19 @@
         <item quantity="one">%1$d fallido</item>
         <item quantity="many">%1$d fallidos</item>
         <item quantity="other">%1$d fallidos</item>
+    </plurals>
+    <string name="filter_sort">Filtrar y ordenar</string>
+    <string name="deleted_one">Se eliminó %1$s</string>
+    <string name="undo">Deshacer</string>
+    <string name="sort">Ordenar</string>
+    <string name="sort_date">Fecha</string>
+    <string name="sort_size">Tamaño</string>
+    <string name="sort_duration">Duración</string>
+    <string name="ascending">Ascendente</string>
+    <string name="descending">Descendente</string>
+    <string name="resumed_at">Retomado en %1$s · Empezar de nuevo</string>
+    <plurals name="deleted_n">
+        <item quantity="one">Se eliminó %d archivo</item>
+        <item quantity="other">Se eliminaron %d archivos</item>
     </plurals>
 </resources>

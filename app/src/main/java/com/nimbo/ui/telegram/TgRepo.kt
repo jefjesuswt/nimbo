@@ -241,6 +241,40 @@ object TgRepo {
         scope.launch { load() }
     }
 
+    // Deslizar para refrescar (9c): espera a que termine.
+    suspend fun reload() = load()
+
+    // Borrado con deshacer (9b): se oculta ya y se borra en Telegram a los
+    // 5 s. Si la app muere antes, no se borra (lado seguro).
+    private val hidden = java.util.Collections.synchronizedSet(mutableSetOf<Long>())
+    private val pendingDel = mutableMapOf<Long, Pair<Job, List<TgFile>>>()
+
+    fun deleteWithUndo(files: List<TgFile>): Long {
+        val ids = files.map { it.messageId }.toSet()
+        hidden += ids
+        _files.value = _files.value.filterNot { it.messageId in ids }
+        val token = System.nanoTime()
+        val job = scope.launch {
+            kotlinx.coroutines.delay(5_000)
+            synchronized(pendingDel) { pendingDel.remove(token) }
+            val ok = runCatching {
+                TgClient.sendAwait(TdApi.DeleteMessages(chat(), ids.toLongArray(), true)) !is TdApi.Error
+            }.getOrDefault(false)
+            if (ok) ids.forEach { runCatching { index?.delete(it) } }
+            hidden -= ids
+            if (!ok) refresh()
+        }
+        synchronized(pendingDel) { pendingDel[token] = job to files }
+        return token
+    }
+
+    fun undoDelete(token: Long) {
+        val (job, files) = synchronized(pendingDel) { pendingDel.remove(token) } ?: return
+        job.cancel()
+        hidden -= files.map { it.messageId }.toSet()
+        _files.value = (_files.value + files).sortedByDescending { it.messageId }
+    }
+
     @Volatile private var lastOkMs = 0L
 
     // Auto-refresh: al abrir + cada X min visible. Barato si ya está al día.
@@ -655,7 +689,7 @@ object TgRepo {
                 if (f.coverHash.isEmpty()) known[f.messageId]?.let { f.copy(coverHash = it) } ?: f else f
             }
             val visible = applyCoverLinks(withKnown, links).sortedByDescending { it.messageId }
-            _files.value = visible
+            _files.value = visible.filterNot { it.messageId in hidden }
             coverMsgs = coverIds
             keepMsgs = keeps
             _keeps.value = keeps.keys

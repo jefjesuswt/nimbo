@@ -174,7 +174,6 @@
     <string name="title_label">Title</string>
     <string name="rename_hint">Display title (file in cloud keeps its name).</string>
     <string name="renamed">Renamed</string>
-    <string name="delete_confirm">Delete from your cloud? No undo.</string>
     <string name="rename">Rename</string>
     <string name="select">Select</string>
     <string name="retag_hint">retag, no bytes move</string>
@@ -215,5 +214,19 @@
     <plurals name="n_failed">
         <item quantity="one">%1$d failed</item>
         <item quantity="other">%1$d failed</item>
+    </plurals>
+    <string name="filter_sort">Filter and sort</string>
+    <string name="deleted_one">Deleted %1$s</string>
+    <string name="undo">Undo</string>
+    <string name="sort">Sort</string>
+    <string name="sort_date">Date</string>
+    <string name="sort_size">Size</string>
+    <string name="sort_duration">Duration</string>
+    <string name="ascending">Ascending</string>
+    <string name="descending">Descending</string>
+    <string name="resumed_at">Resumed at %1$s · Start over</string>
+    <plurals name="deleted_n">
+        <item quantity="one">Deleted %d file</item>
+        <item quantity="other">Deleted %d files</item>
     </plurals>
 </resources>

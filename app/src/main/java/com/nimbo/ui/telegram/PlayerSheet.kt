@@ -271,7 +271,7 @@ fun PlayerSheet(onClose: () -> Unit, onMsg: (String) -> Unit) {
         if (resumed > 0) {
             androidx.compose.material3.AssistChip(
                 onClick = { TgPlayer.seekTo(0) },
-                label = { Text("Resumed at ${fmtDur((resumed / 1000).toInt())} · Start over") },
+                label = { Text(stringResource(R.string.resumed_at, fmtDur((resumed / 1000).toInt()))) },
                 leadingIcon = { Icon(Icons.Filled.Replay, null) }
             )
         }

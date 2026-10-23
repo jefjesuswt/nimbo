@@ -172,6 +172,14 @@ fun TelegramRoute(tab: String = "files") {
     var grids by remember { mutableStateOf(mapOf("photos" to true)) }
     val grid = grids[tab] ?: false
     fun setGrid(v: Boolean) { grids = grids + (tab to v) }
+    // Orden por pestaña (9d), recordado en prefs.
+    val sortPrefs = remember { ctx.getSharedPreferences("nimbo", android.content.Context.MODE_PRIVATE) }
+    var sortKey by remember(tab) { mutableStateOf(sortPrefs.getString("sort_$tab", null) ?: defaultSort(tab)) }
+    fun setSort(v: String) {
+        sortKey = v
+        sortPrefs.edit().putString("sort_$tab", v).apply()
+    }
+    var pulled by remember { mutableStateOf(false) }
     // Álbum (carpeta) abierto en Audio/Fotos; null = lista de álbumes.
     var openAlbum by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(tab) { openAlbum = null }
@@ -346,6 +354,19 @@ fun TelegramRoute(tab: String = "files") {
         )
     }
 
+    // Borrar = ocultar + snackbar "Deshacer" (9b).
+    fun undoableDelete(files: List<TgFile>) {
+        val token = TgRepo.deleteWithUndo(files)
+        scope.launch {
+            val r = snack.showSnackbar(
+                if (files.size == 1) res.getString(R.string.deleted_one, files[0].showTitle())
+                else res.getQuantityString(R.plurals.deleted_n, files.size, files.size),
+                actionLabel = res.getString(R.string.undo),
+                duration = androidx.compose.material3.SnackbarDuration.Short
+            )
+            if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) TgRepo.undoDelete(token)
+        }
+    }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val searchField: @Composable () -> Unit = {
         val focus = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -426,7 +447,7 @@ fun TelegramRoute(tab: String = "files") {
                     scope.launch { snack.showSnackbar(res.getString(R.string.copied_hint)) }
                 }) { Icon(Icons.Filled.ContentCopy, stringResource(R.string.copy)) }
                 IconButton(onClick = {
-                    files.forEach { TgRepo.delete(it) {} }
+                    undoableDelete(files)
                     selection = emptySet()
                 }) { Icon(Icons.Filled.Delete, stringResource(R.string.delete)) }
                 IconButton(onClick = { selection = emptySet() }) { Icon(Icons.Filled.Close, stringResource(R.string.clear)) }
@@ -454,9 +475,9 @@ fun TelegramRoute(tab: String = "files") {
                             if (grid) stringResource(R.string.list_view) else stringResource(R.string.grid_view)
                         )
                     }
-                    if (tab == "files") {
+                    run {
                         IconButton(onClick = { filterSheet = true }) {
-                            Icon(Icons.Filled.FilterList, stringResource(R.string.filter))
+                            Icon(Icons.Filled.FilterList, stringResource(R.string.filter_sort))
                         }
                     }
                     Box {
@@ -579,9 +600,13 @@ fun TelegramRoute(tab: String = "files") {
                             queued.forEach { QueuedCard(it) { detailId = it.id } }
                         }
                     }
-                    Box(Modifier.weight(1f).nestedScroll(clearOnScroll)) {
+                    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                        isRefreshing = pulled,
+                        onRefresh = { scope.launch { pulled = true; TgRepo.reload(); pulled = false } },
+                        modifier = Modifier.weight(1f).nestedScroll(clearOnScroll)
+                    ) {
                     val albums = if (tabList != null && openAlbum == null && query.isBlank())
-                        remember(tabList, tab) { albumsOf(tabList, byDate = tab == "photos") } else null
+                        remember(tabList, tab, sortKey) { sortAlbums(albumsOf(tabList), sortKey) } else null
                     if (albums != null) AlbumsView(albums, audio = tab == "audio", grid = grid, onOpen = { openAlbum = it })
                     else FilesView(
                     all = cloud,
@@ -592,6 +617,7 @@ fun TelegramRoute(tab: String = "files") {
                     // Abrir carpeta desde la búsqueda: navega y cierra la búsqueda.
                     onDir = { dir = it; closeSearch() },
                     query = query,
+                    sortKey = sortKey,
                     onFilter = { filter = it },
                     grid = grid,
                     onGrid = { setGrid(it) },
@@ -645,6 +671,7 @@ fun TelegramRoute(tab: String = "files") {
                     onDismiss = { manageFile = null },
                     onMsg = { m -> scope.launch { snack.showSnackbar(m) } },
                     onSelect = { toggleSel(it); manageFile = null },
+                    onDelete = { undoableDelete(listOf(it)) },
                     onDownload = { TgRepo.download(ctx, f) { ok ->
                         scope.launch { snack.showSnackbar(if (ok) res.getString(R.string.saved_to_downloads) else res.getString(R.string.download_failed)) }
                     } }
@@ -674,6 +701,21 @@ fun TelegramRoute(tab: String = "files") {
                                 onSelect = { filter = it }
                             )
                         }
+                        Text(stringResource(R.string.sort), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
+                        FilterChipRow(
+                            options = listOf(
+                                "name" to stringResource(R.string.name),
+                                "date" to stringResource(R.string.sort_date),
+                                "size" to stringResource(R.string.sort_size)
+                            ) + (if (tab == "audio") listOf("dur" to stringResource(R.string.sort_duration)) else emptyList()),
+                            selected = sortKey.substringBefore(':'),
+                            onSelect = { setSort("$it:" + sortKey.substringAfter(':')) }
+                        )
+                        FilterChipRow(
+                            options = listOf("asc" to stringResource(R.string.ascending), "desc" to stringResource(R.string.descending)),
+                            selected = sortKey.substringAfter(':'),
+                            onSelect = { setSort(sortKey.substringBefore(':') + ":$it") }
+                        )
                         Text(
                             pluralStringResource(R.plurals.files_count, cloud.size, cloud.size) + " · " + formatBytes(cloud.sumOf { it.sizeBytes }),
                             style = MaterialTheme.typography.bodySmall,
@@ -1199,6 +1241,7 @@ private fun FilesView(
     selection: Set<String> = emptySet(),
     onToggle: (TgFile) -> Unit = {},
     query: String = "",
+    sortKey: String = "date:desc",
     // Música / Fotos: lista plana sin carpetas; compact = galería densa sin pie.
     flat: List<TgFile>? = null,
     compact: Boolean = false
@@ -1218,7 +1261,7 @@ private fun FilesView(
     val subs = if (flat != null) emptyList()
         else if (searching) searchIn(folderKeyed, terms)
         else subNames.map { if (dir.isEmpty()) it else "$dir/$it" }
-    val files = filterTgFiles(if (searching) searchIn(keyed, terms) else flat ?: own, filter)
+    val files = sortTg(filterTgFiles(if (searching) searchIn(keyed, terms) else flat ?: own, filter), sortKey)
     val showCrumb = dir.isNotEmpty() || subs.isNotEmpty()
     fun label(path: String) = if (searching) path else path.substringAfterLast('/')
     fun meta(f: TgFile) = if (searching && f.folder.isNotEmpty()) "${f.folder} · ${f.meta}" else f.meta
@@ -1518,6 +1561,7 @@ private fun ManageSheet(
     onDismiss: () -> Unit,
     onMsg: (String) -> Unit,
     onSelect: (TgFile) -> Unit = {},
+    onDelete: (TgFile) -> Unit = {},
     onDownload: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
@@ -1548,27 +1592,11 @@ private fun ManageSheet(
                         }, enabled = !busy && name.isNotBlank()) { Text(stringResource(R.string.save)) }
                     }
                 }
-                "delete" -> {
-                    Text(stringResource(R.string.delete_confirm), color = cs.error)
-                    Spacer(Modifier.height(8.dp))
-                    Row {
-                        Spacer(Modifier.weight(1f))
-                        androidx.compose.material3.TextButton(onClick = { mode = "" }, enabled = !busy) { Text(stringResource(R.string.cancel)) }
-                        androidx.compose.material3.Button(onClick = {
-                            busy = true
-                            TgRepo.delete(f) { ok ->
-                                busy = false
-                                onMsg(if (ok) res.getString(R.string.deleted) else res.getString(R.string.failed))
-                                if (ok) onDismiss()
-                            }
-                        }, enabled = !busy) { Text(stringResource(R.string.delete)) }
-                    }
-                }
                 else -> {
                     SheetRow(stringResource(R.string.rename)) { mode = "rename" }
                     SheetRow(stringResource(R.string.select)) { onSelect(f) }
                     SheetRow(stringResource(R.string.download)) { onDownload(); onDismiss() }
-                    SheetRow(stringResource(R.string.delete), red = true) { mode = "delete" }
+                    SheetRow(stringResource(R.string.delete), red = true) { onDelete(f); onDismiss() }
                 }
             }
             Spacer(Modifier.height(24.dp))

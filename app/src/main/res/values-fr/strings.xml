@@ -173,7 +173,6 @@
     <string name="title_label">Titre</string>
     <string name="rename_hint">Titre affiché (le fichier dans le cloud garde son nom).</string>
     <string name="renamed">Renommé</string>
-    <string name="delete_confirm">Supprimer de votre cloud ? Action irréversible.</string>
     <string name="rename">Renommer</string>
     <string name="select">Sélectionner</string>
     <string name="retag_hint">seule l\'étiquette change, aucune donnée déplacée</string>
@@ -222,5 +221,19 @@
         <item quantity="one">%1$d en échec</item>
         <item quantity="many">%1$d en échec</item>
         <item quantity="other">%1$d en échec</item>
+    </plurals>
+    <string name="filter_sort">Filtrer et trier</string>
+    <string name="deleted_one">Supprimé : %1$s</string>
+    <string name="undo">Annuler</string>
+    <string name="sort">Trier</string>
+    <string name="sort_date">Date</string>
+    <string name="sort_size">Taille</string>
+    <string name="sort_duration">Durée</string>
+    <string name="ascending">Croissant</string>
+    <string name="descending">Décroissant</string>
+    <string name="resumed_at">Reprise à %1$s · Recommencer</string>
+    <plurals name="deleted_n">
+        <item quantity="one">%d fichier supprimé</item>
+        <item quantity="other">%d fichiers supprimés</item>
     </plurals>
 </resources>

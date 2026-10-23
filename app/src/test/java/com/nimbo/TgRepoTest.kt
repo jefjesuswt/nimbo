@@ -388,4 +388,17 @@ class TgRepoTest {
         assertEquals("café" to "Latin-1", decodeText(latin))
         assertEquals("" to "UTF-8", decodeText(ByteArray(0)))
     }
+
+    @Test fun sorting() {
+        fun f(id: String, name: String, date: Int, size: Long, dur: Int) =
+            com.nimbo.ui.telegram.TgFile(id, name, TgKind.AUDIO, "", size, dateSec = date, durSec = dur)
+        val xs = listOf(f("a", "beta.mp3", 2, 30, 5), f("b", "Alpha.mp3", 3, 10, 9), f("c", "gamma.mp3", 1, 20, 1))
+        fun ids(k: String) = com.nimbo.ui.telegram.sortTg(xs, k).map { it.id }
+        assertEquals(listOf("b", "a", "c"), ids("name:asc"))
+        assertEquals(listOf("b", "a", "c"), ids("date:desc"))
+        assertEquals(listOf("b", "c", "a"), ids("size:asc"))
+        assertEquals(listOf("b", "a", "c"), ids("dur:desc"))
+        assertEquals("name:asc", com.nimbo.ui.telegram.defaultSort("audio"))
+        assertEquals("date:desc", com.nimbo.ui.telegram.defaultSort("photos"))
+    }
 }

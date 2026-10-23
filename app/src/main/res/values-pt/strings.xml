@@ -173,7 +173,6 @@
     <string name="title_label">Título</string>
     <string name="rename_hint">Título exibido (o arquivo na nuvem mantém o nome).</string>
     <string name="renamed">Renomeado</string>
-    <string name="delete_confirm">Excluir da sua nuvem? Não dá para desfazer.</string>
     <string name="rename">Renomear</string>
     <string name="select">Selecionar</string>
     <string name="retag_hint">só muda a etiqueta, nenhum dado é movido</string>
@@ -222,5 +221,19 @@
         <item quantity="one">%1$d com falha</item>
         <item quantity="many">%1$d com falha</item>
         <item quantity="other">%1$d com falha</item>
+    </plurals>
+    <string name="filter_sort">Filtrar e ordenar</string>
+    <string name="deleted_one">Excluído: %1$s</string>
+    <string name="undo">Desfazer</string>
+    <string name="sort">Ordenar</string>
+    <string name="sort_date">Data</string>
+    <string name="sort_size">Tamanho</string>
+    <string name="sort_duration">Duração</string>
+    <string name="ascending">Crescente</string>
+    <string name="descending">Decrescente</string>
+    <string name="resumed_at">Retomado em %1$s · Começar do início</string>
+    <plurals name="deleted_n">
+        <item quantity="one">%d arquivo excluído</item>
+        <item quantity="other">%d arquivos excluídos</item>
     </plurals>
 </resources>
