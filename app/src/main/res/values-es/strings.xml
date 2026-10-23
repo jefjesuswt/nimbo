@@ -236,4 +236,11 @@
         <item quantity="one">Se eliminó %d archivo</item>
         <item quantity="other">Se eliminaron %d archivos</item>
     </plurals>
+    <string name="subtitles">Subtítulos</string>
+    <string name="fit_screen">Ajustar a la pantalla</string>
+    <string name="fill_screen">Llenar la pantalla</string>
+    <string name="rotate">Girar</string>
+    <string name="pip">Imagen en imagen</string>
+    <string name="brightness_pct">Brillo %1$d%%</string>
+    <string name="volume_pct">Volumen %1$d%%</string>
 </resources>

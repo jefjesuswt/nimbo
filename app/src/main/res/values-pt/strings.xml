@@ -236,4 +236,11 @@
         <item quantity="one">%d arquivo excluído</item>
         <item quantity="other">%d arquivos excluídos</item>
     </plurals>
+    <string name="subtitles">Legendas</string>
+    <string name="fit_screen">Ajustar à tela</string>
+    <string name="fill_screen">Preencher a tela</string>
+    <string name="rotate">Girar</string>
+    <string name="pip">Picture-in-picture</string>
+    <string name="brightness_pct">Brilho %1$d%%</string>
+    <string name="volume_pct">Volume %1$d%%</string>
 </resources>

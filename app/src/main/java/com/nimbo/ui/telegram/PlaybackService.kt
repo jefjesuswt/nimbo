@@ -1,3 +1,6 @@
+// Media3 marca PlayerView/DataSource/etc. como UnstableApi: opt-in por archivo.
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+
 package com.nimbo.ui.telegram
 
 import android.app.PendingIntent

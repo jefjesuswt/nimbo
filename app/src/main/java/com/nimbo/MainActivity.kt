@@ -70,6 +70,23 @@ class MainActivity : ComponentActivity() {
         setContent { NimboRoot() }
     }
 
+    // PiP del vídeo (spec 08): estado para ocultar controles; en < 12 se
+    // entra a mano al salir con Home (12+ usa setAutoEnterEnabled).
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        com.nimbo.ui.telegram.VideoNav.pip = isInPictureInPictureMode
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (android.os.Build.VERSION.SDK_INT in 26..30 && com.nimbo.ui.telegram.VideoNav.open &&
+            com.nimbo.ui.telegram.TgPlayer.playing.value
+        ) enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

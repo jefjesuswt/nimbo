@@ -1,3 +1,6 @@
+// Media3 marca PlayerView/DataSource/etc. como UnstableApi: opt-in por archivo.
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+
 package com.nimbo.ui.telegram
 
 import android.content.Context
@@ -349,6 +352,7 @@ object TgPlayer {
     private fun loadCurrent() {
         val f = _queue.value.getOrNull(_index.value) ?: return
         savePos()
+        hasSubtitles = false
         _track.value = f
         _posMs.value = 0L
         _resumedFrom.value = 0L
@@ -440,6 +444,34 @@ object TgPlayer {
         val n = _queue.value.size
         if (n == 0) return
         playAt((_index.value - 1 + n) % n)
+    }
+
+    fun pause() {
+        player?.playWhenReady = false
+    }
+
+    // Subtítulo lateral (spec 08): rearma el item actual con la pista,
+    // conservando posición. Se selecciona solo (SELECTION_FLAG_DEFAULT).
+    @Volatile var hasSubtitles = false
+        private set
+
+    fun setSubtitles(path: String, vtt: Boolean) {
+        val p = player ?: return
+        val cur = p.currentMediaItem ?: return
+        val pos = p.currentPosition
+        val sub = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(java.io.File(path)))
+            .setMimeType(if (vtt) androidx.media3.common.MimeTypes.TEXT_VTT else androidx.media3.common.MimeTypes.APPLICATION_SUBRIP)
+            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+            .build()
+        p.setMediaItem(cur.buildUpon().setSubtitleConfigurations(listOf(sub)).build(), pos)
+        p.prepare()
+        hasSubtitles = true
+    }
+
+    fun showSubtitles(on: Boolean) {
+        val p = player ?: return
+        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !on).build()
     }
 
     fun seekTo(ms: Long) {

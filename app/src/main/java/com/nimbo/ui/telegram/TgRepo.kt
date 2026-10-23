@@ -603,6 +603,9 @@ object TgRepo {
                 }.let { (it as TdApi.UpdateFile).file.local.path }
             }?.takeIf { it.isNotEmpty() } ?: return@runCatching false
         }
+        // ponytail: Android 8-9 no tiene MediaStore.Downloads (y pediría
+        // permiso de almacenamiento): sin descarga a Downloads ahí.
+        if (android.os.Build.VERSION.SDK_INT < 29) return@runCatching false
         val src = java.io.File(path)
         val rel = if (sub.isEmpty()) "Download/Nimbo" else "Download/Nimbo/$sub"
         val values = android.content.ContentValues().apply {

@@ -229,4 +229,11 @@
         <item quantity="one">Deleted %d file</item>
         <item quantity="other">Deleted %d files</item>
     </plurals>
+    <string name="subtitles">Subtitles</string>
+    <string name="fit_screen">Fit to screen</string>
+    <string name="fill_screen">Fill screen</string>
+    <string name="rotate">Rotate</string>
+    <string name="pip">Picture-in-picture</string>
+    <string name="brightness_pct">Brightness %1$d%%</string>
+    <string name="volume_pct">Volume %1$d%%</string>
 </resources>
