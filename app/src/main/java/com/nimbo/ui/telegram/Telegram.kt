@@ -71,6 +71,18 @@ private fun strict(bytes: ByteArray, cs: String): String? = runCatching {
 }.getOrNull()
 
 
+// Puras, testeables.
+fun isPhoneOk(phone: String): Boolean = phone.filter { it.isDigit() }.length >= 6
+
+fun isCodeOk(code: String): Boolean = code.length == 5 && code != "00000"
+
+fun filterTgFiles(items: List<TgFile>, f: String): List<TgFile> = when (f) {
+    "audio" -> items.filter { it.kind == TgKind.AUDIO }
+    "media" -> items.filter { it.kind == TgKind.IMAGE || it.kind == TgKind.VIDEO }
+    "other" -> items.filter { it.kind != TgKind.AUDIO && it.kind != TgKind.IMAGE && it.kind != TgKind.VIDEO }
+    else -> items
+}
+
 // Puras, testeables: chip info "N files · X".
 fun formatBytes(b: Long): String = when {
     b >= (1L shl 30) -> "${"%.1f".format(java.util.Locale.US, b.toDouble() / (1L shl 30))} GB"
