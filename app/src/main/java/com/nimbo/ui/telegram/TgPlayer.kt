@@ -122,77 +122,93 @@ object TgDownload {
     }
 }
 
-// DataSource TDLib: `tg://file/<fileId>?total=<bytes>`. Descarga el rango
-// pedido y lee del parcial; si TDLib no avanza en 30s → IOException
-// (ExoPlayer reintenta y muestra buffering). El temp de TDLib ES el caché.
+// Streaming de vídeo (spec 08): `tg://file/<fileId>?total=<bytes>`.
+// Pide a TDLib descargar DESDE la posición que pide ExoPlayer (seek = nuevo
+// offset, no esperar desde el inicio) y lee con ReadFilePart en tramos de
+// 512 KB. Sin bytes en 30 s → IOException (ExoPlayer reintenta).
 class TgStreamSource : DataSource {
-    private var raf: RandomAccessFile? = null
-    private var fileId: Int = 0
-    private var pos: Long = 0
-
-    @Volatile private var complete: Boolean = false
+    private var uri: Uri? = null
+    private var fileId = 0
+    private var pos = 0L
+    private var end = C.LENGTH_UNSET.toLong()
+    private var buf = ByteArray(0)
+    private var bufStart = 0L
 
     override fun open(dataSpec: DataSpec): Long {
-        val uri = dataSpec.uri
-        fileId = uri.lastPathSegment?.toIntOrNull() ?: throw IOException("bad uri")
-        val total: Long = uri.getQueryParameter("total")?.toLongOrNull() ?: 0L
+        uri = dataSpec.uri
+        fileId = dataSpec.uri.lastPathSegment?.toIntOrNull() ?: throw IOException("bad uri")
+        val total = dataSpec.uri.getQueryParameter("total")?.toLongOrNull() ?: 0L
         pos = dataSpec.position
-        runBlocking {
-            val res = TgClient.sendAwait(TdApi.DownloadFile(fileId, 32, 0, 0, true))
-            val path = (res as? TdApi.File)?.local?.path?.takeIf { it.isNotEmpty() }
-                ?: throw IOException("tdlib")
-            raf = RandomAccessFile(path, "r")
-            if (!waitAvailable(pos + 1)) throw IOException("timeout")
-        }
-        return if (total > 0) (total - pos).coerceAtLeast(0L) else C.LENGTH_UNSET.toLong()
+        end = if (total > 0) total else C.LENGTH_UNSET.toLong()
+        buf = ByteArray(0)
+        bufStart = 0L
+        runBlocking { TgClient.sendAwait(TdApi.DownloadFile(fileId, 32, pos, 0, false)) }
+        if (total <= 0) return C.LENGTH_UNSET.toLong()
+        val left = (total - pos).coerceAtLeast(0L)
+        return if (dataSpec.length != C.LENGTH_UNSET.toLong()) minOf(dataSpec.length, left) else left
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
-        val r = raf ?: return C.RESULT_END_OF_INPUT
-        val need = pos + length
-        waitAvailable(need)
-        val avail = runCatching { r.length() }.getOrDefault(0L) - pos
-        if (avail <= 0) {
-            // Fin real → EOF; si no, stall (ExoPlayer reintenta).
-            if (complete) return C.RESULT_END_OF_INPUT
-            throw IOException("stalled")
-        }
-        val n = r.read(buffer, offset, avail.coerceAtMost(length.toLong()).toInt())
+        if (end > 0 && pos >= end) return C.RESULT_END_OF_INPUT
+        if (pos < bufStart || pos >= bufStart + buf.size) fill()
+        val from = (pos - bufStart).toInt()
+        val n = minOf(length, buf.size - from)
         if (n <= 0) return C.RESULT_END_OF_INPUT
+        System.arraycopy(buf, from, buffer, offset, n)
         pos += n
         return n
     }
 
-    // Espera a que haya `need` bytes (o fin). True si se puede leer algo.
-    private fun waitAvailable(need: Long): Boolean {
-        val r = raf ?: return false
-        if (runCatching { r.length() }.getOrDefault(0L) >= need) return true
-        runBlocking {
+    // Espera a tener el tramo (o al menos 64 KB) desde pos y lo lee.
+    private fun fill() {
+        val want = if (end > 0) minOf(CHUNK, end - pos) else CHUNK
+        val have = runBlocking {
             withTimeoutOrNull(30_000) {
+                var h = 0L
                 while (true) {
-                    val cur = TgClient.sendAwait(TdApi.GetFile(fileId)) as? TdApi.File
-                        ?: break
-                    if (cur.local.isDownloadingCompleted) {
-                        complete = true
-                        break
-                    }
-                    if (cur.local.downloadedPrefixSize >= need) break
-                    delay(500)
+                    h = (TgClient.sendAwait(TdApi.GetFileDownloadedPrefixSize(fileId, pos))
+                        as? TdApi.FileDownloadedPrefixSize)?.size ?: 0L
+                    if (h >= want || h >= MIN_READ) break
+                    delay(100)
                 }
+                h
             }
-        }
-        return true
+        } ?: throw IOException("stalled")
+        val part = runBlocking { TgClient.sendAwait(TdApi.ReadFilePart(fileId, pos, minOf(have, want))) }
+            as? TdApi.Data ?: throw IOException("read")
+        if (part.data.isEmpty()) throw IOException("empty")
+        buf = part.data
+        bufStart = pos
     }
 
-    override fun addTransferListener(transferListener: TransferListener) {
-        // Sin telemetría v1.
-    }
-
-    override fun getUri(): Uri? = null
+    override fun addTransferListener(transferListener: TransferListener) {}
+    override fun getUri(): Uri? = uri
     override fun close() {
-        runCatching { raf?.close() }
-        raf = null
+        buf = ByteArray(0)
+    }
+
+    private companion object {
+        const val CHUNK = 512L * 1024
+        const val MIN_READ = 64L * 1024
+    }
+}
+
+// tg:// → streaming TDLib; el resto (archivo local, subtítulos) → normal.
+class TgOrLocalSource(private val local: DataSource) : DataSource {
+    private var cur: DataSource? = null
+    override fun open(dataSpec: DataSpec): Long {
+        val s = if (dataSpec.uri.scheme == "tg") TgStreamSource() else local
+        cur = s
+        return s.open(dataSpec)
+    }
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+        cur?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+    override fun addTransferListener(transferListener: TransferListener) = local.addTransferListener(transferListener)
+    override fun getUri(): Uri? = cur?.uri
+    override fun close() {
+        cur?.close()
+        cur = null
     }
 }
 
@@ -256,10 +272,11 @@ object TgPlayer {
         player?.let { return it }
         val ctx = app ?: throw IllegalStateException("TgPlayer.init first")
         val p = ExoPlayer.Builder(ctx)
+            // DefaultMediaSourceFactory: progresivo + subtítulos laterales.
             .setMediaSourceFactory(
-                ProgressiveMediaSource.Factory(
-                    androidx.media3.datasource.DefaultDataSource.Factory(ctx)
-                )
+                androidx.media3.exoplayer.source.DefaultMediaSourceFactory(ctx).setDataSourceFactory {
+                    TgOrLocalSource(androidx.media3.datasource.DefaultDataSource.Factory(ctx).createDataSource())
+                }
             )
             .setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
@@ -314,7 +331,7 @@ object TgPlayer {
         }
     }
 
-    private fun toItem(f: TgFile, path: String): MediaItem {
+    private fun toItem(f: TgFile, uri: Uri): MediaItem {
         val art: ByteArray? = f.coverHash.takeIf { it.isNotEmpty() }?.let { h ->
             java.io.File(app?.cacheDir, "tg-covers/$h.jpg").takeIf { it.exists() }
                 ?.let { shrinkArt(it) }
@@ -330,7 +347,7 @@ object TgPlayer {
             }
             .build()
         return MediaItem.Builder()
-            .setUri(android.net.Uri.fromFile(java.io.File(path)))
+            .setUri(uri)
             .setMediaId(f.messageId.toString())
             .setMediaMetadata(md)
             .build()
@@ -360,8 +377,26 @@ object TgPlayer {
         dlJob?.cancel()
         _buffering.value = true
         _dlProgress.value = 0f
+        cancelStream()
         dlJob = scope.launch(Dispatchers.IO) {
             try {
+                // Vídeo: streaming (arranca con los primeros MB, seek = nuevo
+                // offset). Audio: descarga completa (chico, seek exacto).
+                if (f.kind == TgKind.VIDEO && f.fileId != 0 && f.sizeBytes > 0) {
+                    _dlProgress.value = null
+                    val start = resumeFrom(TgRepo.posOf(f.messageId), f.durSec * 1000L)
+                    withContext(Dispatchers.Main) {
+                        if (_track.value?.messageId != f.messageId) return@withContext
+                        val p = ensure()
+                        streamingId = f.fileId
+                        p.setMediaItem(toItem(f, Uri.parse("tg://file/${f.fileId}?total=${f.sizeBytes}")), start)
+                        _resumedFrom.value = start
+                        p.setPlaybackSpeed(_speed.value)
+                        p.prepare()
+                        p.playWhenReady = true
+                    }
+                    return@launch
+                }
                 val src = TgDownload.awaitFile(f.fileId) { p -> _dlProgress.value = p }
                     ?: throw IOException("download")
                 val dst = stageCopy(src, f)
@@ -369,7 +404,7 @@ object TgPlayer {
                 withContext(Dispatchers.Main) {
                     if (_track.value?.messageId != f.messageId) return@withContext
                     val p = ensure()
-                    p.setMediaItem(toItem(f, dst), start)
+                    p.setMediaItem(toItem(f, Uri.fromFile(java.io.File(dst))), start)
                     _resumedFrom.value = start
                     p.setPlaybackSpeed(_speed.value)
                     p.prepare()
@@ -531,8 +566,19 @@ object TgPlayer {
         }
     }
 
+    // Descarga en curso del vídeo en streaming: se corta al cambiar o parar.
+    @Volatile private var streamingId = 0
+
+    private fun cancelStream() {
+        val id = streamingId
+        if (id == 0) return
+        streamingId = 0
+        scope.launch { runCatching { TgClient.sendAwait(TdApi.CancelDownloadFile(id, false)) } }
+    }
+
     fun stop() {
         savePos()
+        cancelStream()
         timerJob?.cancel()
         ticker?.cancel()
         dlJob?.cancel()
