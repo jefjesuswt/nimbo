@@ -1,5 +1,9 @@
 # Spec 10 — Copia automática de la galería (estilo Google Fotos)
 
+> **Descartada.** Implementada y retirada (PR #3 cerrado): arrancar la sesión
+> TDLib desde WorkManager y depender de restricciones de carga/red la hizo
+> frágil y difícil de probar. Queda como referencia si se retoma.
+
 Nimbo pasa de "subo cuando me acuerdo" a "mi nube de verdad".
 
 ## Comportamiento

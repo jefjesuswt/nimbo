@@ -33,7 +33,7 @@
 - [x] 09d Ordenar (nombre/fecha/tamaño/duración, asc/desc, por pestaña)
 - [ ] 09a barra de progreso en lista/grid para archivos empezados
 - [x] Verificar 09a-d en celu
-- [ ] 10 Copia automática de la galería (estilo Google Fotos, WorkManager)
+- ~~10 Copia automática de la galería~~ descartada: frágil en segundo plano (sesión TDLib desde WorkManager, restricciones de carga/red). PR #3 cerrado
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
 - [ ] 13 Archivos > 2 GB (troceo)
