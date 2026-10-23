@@ -6,6 +6,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Translation in the text reader now runs on the phone with ML Kit: the text never leaves the device. Language models (about 30 MB each) download on first use, on Wi-Fi by default (can be allowed on mobile data in More).
+- The unofficial Google Translate web endpoint is no longer in the public build.
+
 ## [1.0.0] - 2026-10-23
 
 First public release.

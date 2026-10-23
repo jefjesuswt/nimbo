@@ -51,12 +51,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
 // Lector multi-formato (txt/md/srt/csv/código…) con encoding detectado
-// (UTF-8/16, Shift_JIS, Latin-1) + traducción con par de idiomas.
-// Ojo: traducir envía el texto a Google (ver TgCloudTranslate).
+// (UTF-8/16, Shift_JIS, Latin-1) + traducción con par de idiomas por el
+// proveedor elegido en More (Translators: ML Kit en el teléfono por defecto).
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
@@ -69,9 +70,13 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
     var tab by remember(f.messageId) { mutableStateOf(0) } // 0 original, 1 traducido
     var translated by remember(f.messageId) { mutableStateOf<String?>(null) }
     var working by remember(f.messageId) { mutableStateOf(false) }
+    // Estado visible mientras traduce ("descargando modelo…").
+    var status by remember(f.messageId) { mutableStateOf<Int?>(null) }
+    val tr = remember { Translators.current(ctx) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var langs by remember(f.messageId) { mutableStateOf(false) }
     var src by remember(f.messageId) { mutableStateOf("auto") }
-    var tgt by remember(f.messageId) { mutableStateOf(systemLang()) }
+    var tgt by remember(f.messageId) { mutableStateOf(systemLang(tr.langs)) }
     // Hermano guardado ("05_x.es.txt"): se abre sin re-traducir.
     val cloud by TgRepo.files.collectAsState()
     val sib = cloud.firstOrNull { it.folder == f.folder && it.name == siblingName(f.name, tgt) }
@@ -121,15 +126,15 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
             return
         }
         working = true
+        status = null
         translated = null
         tab = 1
-        TgCloudTranslate.translate(orig, s, t) { out ->
+        scope.launch {
+            val out = runCatching { Translators.translate(ctx, tr, orig, s, t) { status = it } }
             working = false
-            if (out == null) {
-                onMsg(rs.getString(R.string.translation_failed))
+            out.onSuccess { translated = it }.onFailure {
+                onMsg(rs.getString((it as? TrError)?.res ?: R.string.translation_failed))
                 tab = 0
-            } else {
-                translated = out
             }
         }
     }
@@ -163,7 +168,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
             )
             working -> Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(
-                    stringResource(R.string.translating, pairLabel),
+                    status?.let { stringResource(it) } ?: stringResource(R.string.translating, pairLabel),
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onSurfaceVariant
                 )
@@ -187,7 +192,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
     }
     if (langs) {
         TranslateModal(
-            src = src, tgt = tgt, tab = tab,
+            src = src, tgt = tgt, tab = tab, tr = tr,
             hasTranslation = translated != null,
             savedName = sib?.name,
             onDismiss = { langs = false },
@@ -219,9 +224,9 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
     }
 }
 
-private fun systemLang(): String {
+private fun systemLang(langs: List<String>): String {
     val tag = Locale.getDefault().language
-    return if (tag in TgCloudTranslate.Langs) tag else "es"
+    return if (tag in langs) tag else "es"
 }
 
 // Nombre del idioma en el idioma de la app; "auto" lo pone la UI.
@@ -235,7 +240,7 @@ private fun langName(tag: String, auto: String): String =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TranslateModal(
-    src: String, tgt: String, tab: Int,
+    src: String, tgt: String, tab: Int, tr: Translator,
     hasTranslation: Boolean, savedName: String?,
     onDismiss: () -> Unit,
     onTranslate: (String, String) -> Unit,
@@ -258,9 +263,16 @@ private fun TranslateModal(
                 when (page) {
                     0 -> {
                         Text(stringResource(R.string.tr_from), style = MaterialTheme.typography.labelMedium)
-                        LangSelect(listOf("auto") + TgCloudTranslate.Langs, s) { s = it }
+                        LangSelect(listOf("auto") + tr.langs, s) { s = it }
                         Text(stringResource(R.string.tr_to), style = MaterialTheme.typography.labelMedium)
-                        LangSelect(TgCloudTranslate.Langs, t) { t = it }
+                        LangSelect(tr.langs, t) { t = it }
+                        // Privacidad: dónde ocurre la traducción.
+                        Text(
+                            stringResource(tr.label) + " · " +
+                                stringResource(if (tr.onDevice) R.string.tr_on_device else R.string.tr_sends_google),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     1 -> {
                         listOf(stringResource(R.string.tr_original), stringResource(R.string.tr_translated)).forEachIndexed { i, l ->

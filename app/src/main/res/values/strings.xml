@@ -240,4 +240,17 @@
     <string name="about_made_by">Made by %1$s</string>
     <string name="about_built_with">Built with TDLib, Media3 and Jetpack Compose</string>
     <string name="about_not_affiliated">Not affiliated with Telegram.</string>
+    <string name="tr_group">Translation</string>
+    <string name="tr_provider">Translation provider</string>
+    <string name="tr_mlkit">On this phone (ML Kit)</string>
+    <string name="tr_google_web">Google Translate (web)</string>
+    <string name="tr_on_device">text stays on this phone</string>
+    <string name="tr_sends_google">sends the text to Google</string>
+    <string name="tr_downloading_model">Downloading language model…</string>
+    <string name="tr_working">Translating…</string>
+    <string name="tr_need_wifi">Connect to Wi-Fi to download the language model (about 30 MB), or allow mobile data in More.</string>
+    <string name="tr_cant_detect">Couldn\'t detect the language. Choose it manually.</string>
+    <string name="tr_unsupported">This language isn\'t available for translation on this phone.</string>
+    <string name="tr_models_mobile">Download language models on mobile data</string>
+    <string name="tr_models_mobile_sub">About 30 MB per language</string>
 </resources>

@@ -230,4 +230,17 @@
     <string name="about_made_by">作者: %1$s</string>
     <string name="about_built_with">TDLib・Media3・Jetpack Compose で開発</string>
     <string name="about_not_affiliated">Telegram とは関係ありません。</string>
+    <string name="tr_group">翻訳</string>
+    <string name="tr_provider">翻訳サービス</string>
+    <string name="tr_mlkit">スマートフォン上 (ML Kit)</string>
+    <string name="tr_google_web">Google 翻訳 (Web)</string>
+    <string name="tr_on_device">テキストは端末の外に出ません</string>
+    <string name="tr_sends_google">テキストを Google に送信します</string>
+    <string name="tr_downloading_model">言語モデルをダウンロード中…</string>
+    <string name="tr_working">翻訳中…</string>
+    <string name="tr_need_wifi">言語モデル (約 30 MB) をダウンロードするには Wi-Fi に接続するか、「その他」でモバイルデータを許可してください。</string>
+    <string name="tr_cant_detect">言語を検出できませんでした。手動で選んでください。</string>
+    <string name="tr_unsupported">この言語は端末上の翻訳に対応していません。</string>
+    <string name="tr_models_mobile">モバイルデータで言語モデルをダウンロード</string>
+    <string name="tr_models_mobile_sub">1 言語あたり約 30 MB</string>
 </resources>
