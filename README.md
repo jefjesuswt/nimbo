@@ -34,8 +34,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Two flavors:
 
-- `public` (default, the one in Releases): translation runs **on the phone** with ML Kit.
-- `personal`: also offers the unofficial Google Translate web endpoint (sends the text to Google). Not published.
+- `public` (default, the one in Releases): no translation in the text reader.
+- `personal`: translation in the text reader, on the phone with ML Kit (default) or with the unofficial Google Translate web endpoint (sends the text to Google). Not published.
 
 ```sh
 ./gradlew assemblePublicRelease     # GitHub Releases

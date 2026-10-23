@@ -57,7 +57,7 @@ import java.util.Locale
 
 // Lector multi-formato (txt/md/srt/csv/código…) con encoding detectado
 // (UTF-8/16, Shift_JIS, Latin-1) + traducción con par de idiomas por el
-// proveedor elegido en More (Translators: ML Kit en el teléfono por defecto).
+// proveedor elegido en More (solo build personal: ML Kit por defecto).
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
@@ -76,7 +76,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var langs by remember(f.messageId) { mutableStateOf(false) }
     var src by remember(f.messageId) { mutableStateOf("auto") }
-    var tgt by remember(f.messageId) { mutableStateOf(systemLang(tr.langs)) }
+    var tgt by remember(f.messageId) { mutableStateOf(systemLang(tr?.langs ?: Langs)) }
     // Hermano guardado ("05_x.es.txt"): se abre sin re-traducir.
     val cloud by TgRepo.files.collectAsState()
     val sib = cloud.firstOrNull { it.folder == f.folder && it.name == siblingName(f.name, tgt) }
@@ -121,6 +121,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
 
     fun doTranslate(s: String, t: String) {
         val orig = text ?: return
+        val tr = tr ?: return
         if (orig.isBlank()) {
             onMsg(rs.getString(R.string.nothing_to_translate))
             return
@@ -152,7 +153,8 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
                     style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant
                 )
             }
-            IconButton(onClick = { langs = true }) { Icon(Icons.Filled.Translate, pairLabel) }
+            // Sin proveedor (build público): no se ofrece traducir.
+            if (tr != null) IconButton(onClick = { langs = true }) { Icon(Icons.Filled.Translate, pairLabel) }
             IconButton(onClick = {
                 TgRepo.download(ctx, f) { ok ->
                     onMsg(if (ok) rs.getString(R.string.saved_to_downloads) else rs.getString(R.string.download_failed))
@@ -190,7 +192,7 @@ fun TextReader(f: TgFile, onClose: () -> Unit, onMsg: (String) -> Unit) {
         }
         Spacer(Modifier.height(16.dp))
     }
-    if (langs) {
+    if (langs && tr != null) {
         TranslateModal(
             src = src, tgt = tgt, tab = tab, tr = tr,
             hasTranslation = translated != null,

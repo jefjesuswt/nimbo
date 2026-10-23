@@ -1,4 +1,4 @@
 package com.nimbo.ui.telegram
 
-// Build público: solo traducción en el teléfono (ML Kit).
+// Build público: sin traducción (ni ML Kit ni web).
 fun flavorTranslators(): List<Translator> = emptyList()

@@ -30,8 +30,8 @@ android {
             keyPassword = storePassword
         }
     }
-    // public = la de GitHub Releases (solo traducción en el teléfono);
-    // personal = añade el traductor web de Google. Mismo applicationId.
+    // public = la de GitHub Releases, sin traducción;
+    // personal = traducción con ML Kit (teléfono) y web de Google. Mismo applicationId.
     flavorDimensions += "dist"
     productFlavors {
         create("public") {
@@ -75,9 +75,9 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.5.0-beta01")
     implementation("androidx.compose.material3:material3-window-size-class")
     implementation("androidx.documentfile:documentfile:1.0.1")
-    // Traducción en el teléfono (lector): modelos por idioma bajo demanda.
-    implementation("com.google.mlkit:translate:17.0.3")
-    implementation("com.google.mlkit:language-id:17.0.6")
+    // Traducción (solo build personal): modelos por idioma bajo demanda.
+    "personalImplementation"("com.google.mlkit:translate:17.0.3")
+    "personalImplementation"("com.google.mlkit:language-id:17.0.6")
     // Nube (spec 07): TDLib MTProto + secrets cifrados.
     implementation("com.github.tdlibx:td:1.8.56")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

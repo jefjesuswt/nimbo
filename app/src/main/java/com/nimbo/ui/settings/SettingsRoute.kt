@@ -139,7 +139,8 @@ fun SettingsRoute(
                     }
                 }
                 TelegramGroup()
-                TranslationGroup()
+                // Build público: sin traducción, sin grupo.
+                if (com.nimbo.ui.telegram.Translators.all.isNotEmpty()) TranslationGroup()
                 Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
                         icon = Icons.Filled.Tune, title = stringResource(R.string.settings_notif_categories),
@@ -196,7 +197,8 @@ private fun TranslationGroup() {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("nimbo", android.content.Context.MODE_PRIVATE) }
     val all = com.nimbo.ui.telegram.Translators.all
-    var cur by remember { mutableStateOf(com.nimbo.ui.telegram.Translators.current(ctx)) }
+    val first = com.nimbo.ui.telegram.Translators.current(ctx) ?: return
+    var cur by remember { mutableStateOf(first) }
     var dlg by remember { mutableStateOf(false) }
     var mobile by remember { mutableStateOf(prefs.getBoolean(com.nimbo.ui.telegram.Translators.MODELS_MOBILE, false)) }
     fun note(t: com.nimbo.ui.telegram.Translator) = if (t.onDevice) R.string.tr_on_device else R.string.tr_sends_google
@@ -227,7 +229,7 @@ private fun TranslationGroup() {
         onConfirm = { id ->
             dlg = false
             com.nimbo.ui.telegram.Translators.set(ctx, id)
-            cur = com.nimbo.ui.telegram.Translators.current(ctx)
+            com.nimbo.ui.telegram.Translators.current(ctx)?.let { cur = it }
         }
     )
 }
