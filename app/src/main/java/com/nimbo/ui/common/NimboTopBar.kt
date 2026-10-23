@@ -19,11 +19,12 @@ import androidx.compose.ui.text.style.TextOverflow
 fun NimboTopBar(
     title: String,
     modifier: Modifier = Modifier,
+    titleContent: (@Composable () -> Unit)? = null,
     navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     TopAppBar(
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        title = { titleContent?.invoke() ?: Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = navigationIcon ?: {},
         actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(),

@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 @Composable
 fun NimboScaffold(
     title: String,
+    // Reemplaza el título (p. ej. campo de búsqueda a lo ancho del topbar).
+    titleContent: (@Composable () -> Unit)? = null,
     snack: SnackbarHostState? = null,
     navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
@@ -38,6 +40,7 @@ fun NimboScaffold(
         topBar = {
             NimboTopBar(
                 title = title,
+                titleContent = titleContent,
                 navigationIcon = navigationIcon,
                 actions = actions
             )

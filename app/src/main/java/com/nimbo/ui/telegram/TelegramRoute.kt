@@ -108,6 +108,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -244,14 +248,14 @@ fun TelegramRoute(tab: String = "files") {
         query = ""
     }
     androidx.activity.compose.BackHandler(
-        enabled = searching && viewerIdx == null && textFile == null && !sheet
+        enabled = (searching || query.isNotEmpty()) && viewerIdx == null && textFile == null && !sheet
     ) { closeSearch() }
     androidx.activity.compose.BackHandler(
-        enabled = openAlbum != null && !searching && viewerIdx == null && textFile == null && !sheet
+        enabled = openAlbum != null && !searching && query.isEmpty() && viewerIdx == null && textFile == null && !sheet
     ) { openAlbum = null }
     // Carpeta al último: si hay player/visor/lector/diálogo/búsqueda, el back no navega.
     androidx.activity.compose.BackHandler(
-        enabled = view == 2 && dir.isNotEmpty() && !searching && viewerIdx == null && textFile == null && !sheet && manageFile == null && manageDir == null
+        enabled = view == 2 && dir.isNotEmpty() && !searching && query.isEmpty() && viewerIdx == null && textFile == null && !sheet && manageFile == null && manageDir == null
     ) {
         dir = parentOf(dir)
     }
@@ -337,15 +341,65 @@ fun TelegramRoute(tab: String = "files") {
         )
     }
 
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val searchField: @Composable () -> Unit = {
+        val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+        var hadFocus by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { focus.requestFocus() }
+        // Ocultar el teclado (back, gesto) también cuenta como perder el foco.
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        val imeVisible = WindowInsets.isImeVisible
+        var imeShown by remember { mutableStateOf(false) }
+        LaunchedEffect(imeVisible) {
+            if (imeVisible) imeShown = true else if (imeShown) focusManager.clearFocus()
+        }
+        androidx.compose.foundation.text.BasicTextField(
+            value = query,
+            onValueChange = { query = it },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleLarge.copy(color = cs.onSurface),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(cs.primary),
+            keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus)
+                .onFocusChanged { if (it.isFocused) hadFocus = true else if (hadFocus) searching = false },
+            decorationBox = { inner ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) Text(
+                        "Search files and folders",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = cs.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                    inner()
+                }
+            }
+        )
+    }
+    // Scroll en el contenido = perder el foco (el topbar vuelve a su estado).
+    val clearOnScroll = remember {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            override fun onPreScroll(
+                available: androidx.compose.ui.geometry.Offset,
+                source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
+            ): androidx.compose.ui.geometry.Offset {
+                focusManager.clearFocus()
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+        }
+    }
     Box(Modifier.fillMaxSize()) {
     NimboScaffold(
-        title = if (view != 2) "Nimbo" else if (openAlbum != null) openAlbumName else when (tab) {
+        titleContent = if (view == 2 && searching) searchField else null,
+        title = if (view != 2) "Nimbo" else if (query.isNotEmpty()) "\u201C$query\u201D" else if (openAlbum != null) openAlbumName else when (tab) {
             "audio" -> "Audio"
             "photos" -> "Photos"
             else -> "Files"
         },
         snack = snack,
-        navigationIcon = if (view == 2 && openAlbum != null) {
+        navigationIcon = if (view == 2 && searching) {
+            { IconButton(onClick = { closeSearch() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Close search") } }
+        } else if (view == 2 && openAlbum != null) {
             { IconButton(onClick = { openAlbum = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
         } else null,
         actions = {
@@ -371,6 +425,8 @@ fun TelegramRoute(tab: String = "files") {
                     selection = emptySet()
                 }) { Icon(Icons.Filled.Delete, "Delete") }
                 IconButton(onClick = { selection = emptySet() }) { Icon(Icons.Filled.Close, "Clear") }
+            } else if (searching) {
+                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Clear") }
             } else {
                 if (clipboard != null) {
                     IconButton(onClick = {
@@ -384,7 +440,9 @@ fun TelegramRoute(tab: String = "files") {
                     }) { Icon(Icons.Filled.ContentPaste, "Paste here") }
                 }
                 if (view == 2 && !searching) {
-                    IconButton(onClick = { searching = true }) { Icon(Icons.Filled.Search, "Search") }
+                    IconButton(onClick = { searching = true }) {
+                        Icon(Icons.Filled.Search, "Search", tint = if (query.isNotEmpty()) cs.primary else androidx.compose.material3.LocalContentColor.current)
+                    }
                     IconButton(onClick = { setGrid(!grid) }) {
                         Icon(
                             if (grid) Icons.Filled.ViewList else Icons.Filled.GridView,
@@ -461,26 +519,6 @@ fun TelegramRoute(tab: String = "files") {
                     onConfirm = { TgClient.sendPassword(it) }
                 )
                 2 -> Column(Modifier.fillMaxSize()) {
-                    if (searching) {
-                        val focus = remember { androidx.compose.ui.focus.FocusRequester() }
-                        val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
-                        LaunchedEffect(Unit) { focus.requestFocus() }
-                        androidx.compose.material3.OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            placeholder = { Text("Search files and folders") },
-                            leadingIcon = { Icon(Icons.Filled.Search, null) },
-                            trailingIcon = {
-                                IconButton(onClick = { closeSearch() }) { Icon(Icons.Filled.Close, "Close search") }
-                            },
-                            singleLine = true,
-                            shape = CircleShape,
-                            keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { keyboard?.hide() }),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-                                .focusRequester(focus)
-                        )
-                    }
                     // Un pending por lote: corriendo arriba, en cola debajo.
                     val batches by TgRepo.batches.collectAsState()
                     var detailId by remember { mutableStateOf<Long?>(null) }
@@ -536,7 +574,7 @@ fun TelegramRoute(tab: String = "files") {
                             queued.forEach { QueuedCard(it) { detailId = it.id } }
                         }
                     }
-                    Box(Modifier.weight(1f)) {
+                    Box(Modifier.weight(1f).nestedScroll(clearOnScroll)) {
                     val albums = if (tabList != null && openAlbum == null && query.isBlank())
                         remember(tabList, tab) { albumsOf(tabList, byDate = tab == "photos") } else null
                     if (albums != null) AlbumsView(albums, audio = tab == "audio", grid = grid, onOpen = { openAlbum = it })
