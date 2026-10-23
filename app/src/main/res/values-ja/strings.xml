@@ -250,4 +250,10 @@
     <plurals name="backup_existing_body">
         <item quantity="other">このフォルダにはすでに %d 件の写真と動画があります。これもアップロードしますか？それともこれ以降の新しいものだけにしますか？</item>
     </plurals>
+    <string name="backup_paused">バックアップを一時停止しました</string>
+    <string name="backup_signed_out">バックアップを続けるには Nimbo にログインしてください</string>
+    <string name="backup_retry_sub">タップして再試行</string>
+    <plurals name="backup_gave_up">
+        <item quantity="other">%d 件のファイルが失敗し続けています</item>
+    </plurals>
 </resources>

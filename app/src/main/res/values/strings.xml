@@ -262,4 +262,11 @@
         <item quantity="one">This folder already has %d photo or video. Upload it too, or only new ones from now on?</item>
         <item quantity="other">This folder already has %d photos and videos. Upload them too, or only new ones from now on?</item>
     </plurals>
+    <string name="backup_paused">Backup paused</string>
+    <string name="backup_signed_out">Sign in to Nimbo to continue the backup</string>
+    <string name="backup_retry_sub">Tap to try them again</string>
+    <plurals name="backup_gave_up">
+        <item quantity="one">%d file keeps failing</item>
+        <item quantity="other">%d files keep failing</item>
+    </plurals>
 </resources>

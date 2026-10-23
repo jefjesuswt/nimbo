@@ -924,6 +924,35 @@ object TgRepo {
         }
     }
 
+    // Copia automática en la tarjeta de subidas (spec 10): mismo BatchUi que
+    // un lote manual; su ✕ (cancelBatch) marca el flag que lee el Worker.
+    fun beginExternal(label: String, items: List<Pair<String, Long>>): Long {
+        val id = System.currentTimeMillis()
+        _batches.value += BatchUi(
+            id, label, items.sumOf { it.second }.coerceAtLeast(1L), 0, "", 0, items.size, true,
+            items = items.map { BatchItem(it.first, it.second) }, startMs = id
+        )
+        return id
+    }
+
+    // state: 1 subiendo, 2 hecho, 3 fallido (ítem index-1 al terminar, index al empezar).
+    fun externalStep(id: Long, index: Int, done: Long, current: String, state: Int) {
+        val item = if (state == 1) index else index - 1
+        updBatch(id) {
+            it.copy(
+                done = done, doneFiles = if (state == 1) index else index, current = current,
+                items = it.items.mapIndexed { j, b -> if (j == item) b.copy(state = state) else b }
+            )
+        }
+    }
+
+    fun isCancelled(id: Long): Boolean = id in cancelFlags
+
+    fun endExternal(id: Long) {
+        cancelFlags.remove(id)
+        _batches.value = _batches.value.filterNot { it.id == id }
+    }
+
     // Último error de SendMessage (copia automática lee FLOOD_WAIT_X de aquí).
     @Volatile var lastSendError: String? = null
         private set

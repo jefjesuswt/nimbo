@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
@@ -409,6 +410,19 @@ private fun BackupGroup() {
                 icon = Icons.Filled.Sync, title = stringResource(R.string.backup_now),
                 sub = status,
                 onClick = { com.nimbo.backup.Backup.runNow(ctx) }
+            )
+            // Archivos que fallaron 5 veces: ya no se reintentan solos.
+            var gaveUp by remember { mutableStateOf(prefs.getInt(com.nimbo.backup.BackupPrefs.GAVE_UP, 0)) }
+            if (gaveUp > 0) PrefRow(
+                icon = Icons.Filled.ErrorOutline,
+                title = res.getQuantityString(R.plurals.backup_gave_up, gaveUp, gaveUp),
+                sub = stringResource(R.string.backup_retry_sub),
+                onClick = {
+                    com.nimbo.backup.BackupLog(ctx).resetFails()
+                    prefs.edit().putInt(com.nimbo.backup.BackupPrefs.GAVE_UP, 0).apply()
+                    gaveUp = 0
+                    com.nimbo.backup.Backup.runNow(ctx)
+                }
             )
         }
     }

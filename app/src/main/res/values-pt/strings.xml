@@ -269,4 +269,11 @@
         <item quantity="one">Esta pasta já tem %d foto ou vídeo. Enviar também ou só o que for novo daqui em diante?</item>
         <item quantity="other">Esta pasta já tem %d fotos e vídeos. Enviar também ou só os novos daqui em diante?</item>
     </plurals>
+    <string name="backup_paused">Backup pausado</string>
+    <string name="backup_signed_out">Entre no Nimbo para continuar o backup</string>
+    <string name="backup_retry_sub">Toque para tentar de novo</string>
+    <plurals name="backup_gave_up">
+        <item quantity="one">%d arquivo continua falhando</item>
+        <item quantity="other">%d arquivos continuam falhando</item>
+    </plurals>
 </resources>

@@ -269,4 +269,11 @@
         <item quantity="one">Ce dossier contient déjà %d photo ou vidéo. L\'envoyer aussi, ou seulement les nouveautés à partir de maintenant ?</item>
         <item quantity="other">Ce dossier contient déjà %d photos et vidéos. Les envoyer aussi, ou seulement les nouveautés à partir de maintenant ?</item>
     </plurals>
+    <string name="backup_paused">Sauvegarde en pause</string>
+    <string name="backup_signed_out">Connectez-vous à Nimbo pour reprendre la sauvegarde</string>
+    <string name="backup_retry_sub">Touchez pour réessayer</string>
+    <plurals name="backup_gave_up">
+        <item quantity="one">%d fichier échoue toujours</item>
+        <item quantity="other">%d fichiers échouent toujours</item>
+    </plurals>
 </resources>

@@ -269,4 +269,11 @@
         <item quantity="one">Esta carpeta ya tiene %d foto o video. ¿Subirla también o solo lo nuevo desde ahora?</item>
         <item quantity="other">Esta carpeta ya tiene %d fotos y videos. ¿Subirlos también o solo lo nuevo desde ahora?</item>
     </plurals>
+    <string name="backup_paused">Copia en pausa</string>
+    <string name="backup_signed_out">Inicia sesión en Nimbo para continuar la copia</string>
+    <string name="backup_retry_sub">Toca para volver a intentarlo</string>
+    <plurals name="backup_gave_up">
+        <item quantity="one">%d archivo sigue fallando</item>
+        <item quantity="other">%d archivos siguen fallando</item>
+    </plurals>
 </resources>

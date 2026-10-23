@@ -6,6 +6,7 @@ import com.nimbo.backup.floodWaitSec
 import com.nimbo.backup.isMediaName
 import com.nimbo.backup.newEntries
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class BackupTest {
@@ -38,5 +39,23 @@ class BackupTest {
         assertEquals(7, floodWaitSec("Too Many Requests: retry after 7"))
         assertEquals(null, floodWaitSec("FILE_PART_INVALID"))
         assertEquals(null, floodWaitSec(null))
+    }
+
+    @Test fun dedupeAndRetry() {
+        val a = com.nimbo.backup.fingerprint(10, byteArrayOf(1, 2), byteArrayOf(3))
+        assertEquals(a, com.nimbo.backup.fingerprint(10, byteArrayOf(1, 2), byteArrayOf(3)))
+        assertNotEquals(a, com.nimbo.backup.fingerprint(11, byteArrayOf(1, 2), byteArrayOf(3)))
+        assertNotEquals(a, com.nimbo.backup.fingerprint(10, byteArrayOf(1, 2), byteArrayOf(4)))
+        val f = com.nimbo.ui.telegram.TgFile("1", "IMG_1.jpg", com.nimbo.ui.telegram.TgKind.IMAGE, "", 500, folder = "Backup/Camera")
+        assertEquals(f, com.nimbo.backup.inCloud(listOf(f), "Backup/Camera", "IMG_1.jpg", 500))
+        assertEquals(null, com.nimbo.backup.inCloud(listOf(f), "Backup/Camera", "IMG_1.jpg", 501))
+        assertEquals(null, com.nimbo.backup.inCloud(listOf(f), "Backup/Other", "IMG_1.jpg", 500))
+        val h = 3_600_000L
+        assertEquals(true, com.nimbo.backup.shouldRetry(0, 0, 0))
+        assertEquals(false, com.nimbo.backup.shouldRetry(1, 0, h - 1))
+        assertEquals(true, com.nimbo.backup.shouldRetry(1, 0, h))
+        assertEquals(false, com.nimbo.backup.shouldRetry(3, 0, 3 * h))      // 3 fallos: espera 4 h
+        assertEquals(true, com.nimbo.backup.shouldRetry(3, 0, 4 * h))
+        assertEquals(false, com.nimbo.backup.shouldRetry(com.nimbo.backup.MAX_FAILS, 0, 1000 * h))
     }
 }
