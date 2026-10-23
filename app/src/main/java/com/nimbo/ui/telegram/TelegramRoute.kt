@@ -131,7 +131,6 @@ import com.nimbo.ui.common.FilterChipRow
 import com.nimbo.ui.common.LeadingCircle
 import com.nimbo.ui.common.RadioDialog
 import com.nimbo.ui.common.NimboScaffold
-import com.nimbo.ui.common.fabVisible
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -621,6 +620,7 @@ fun TelegramRoute(tab: String = "files") {
                     all = cloud,
                     flat = if (openAlbum != null && query.isBlank()) tabList?.filter { it.folder == openAlbum } else tabList,
                     compact = tab == "photos",
+                    fabSpace = tab == "files",
                     filter = if (tab == "files") filter else "all",
                     dir = dir,
                     // Abrir carpeta desde la búsqueda: navega y cierra la búsqueda.
@@ -1258,7 +1258,9 @@ private fun FilesView(
     sortKey: String = "date:desc",
     // Música / Fotos: lista plana sin carpetas; compact = galería densa sin pie.
     flat: List<TgFile>? = null,
-    compact: Boolean = false
+    compact: Boolean = false,
+    // Hueco abajo para que los FABs (solo en Files) no tapen el último ítem.
+    fabSpace: Boolean = false
 ) {
     val cs = MaterialTheme.colorScheme
     val positions by TgRepo.positions.collectAsState()
@@ -1303,7 +1305,7 @@ private fun FilesView(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 160.dp)
+            contentPadding = PaddingValues(bottom = if (fabSpace) 88.dp else 16.dp)
         ) {
             stickyHeader { SubHeader(syncing, dir, onDir, showCrumb && flat == null) }
             items(subs, key = { "d$it" }) { s ->
@@ -1418,7 +1420,7 @@ private fun FilesView(
                     state = gridState,
                     columns = GridCells.Adaptive(if (compact) 110.dp else 160.dp),
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 160.dp),
+                contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, if (fabSpace) 88.dp else 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp)
             ) {
