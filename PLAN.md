@@ -25,7 +25,8 @@
 - [ ] Antes de publicar: `applicationId` definitivo (único en Play), R8 con keep rules de TDLib
 
 ## Fase 1: Roadmap (specs 08-14)
-- [ ] 08 Reproductor de vídeo propio (pantalla completa, gestos, velocidad, subtítulos .srt/.vtt, PiP)
+- [x] 08 Reproductor de vídeo propio (pantalla completa, gestos, velocidad, subtítulos .srt/.vtt, PiP)
+- [ ] 08 verificar en celu (mp4 grande, gestos, PiP, .srt) · [ ] streaming progresivo · [ ] pellizco/seek horizontal
 - [x] 09a Continuar donde lo dejaste (posición por archivo, chip "empezar de cero")
 - [x] 09b Deshacer al borrar (5 s) · [ ] papelera 30 días (v2)
 - [x] 09c Deslizar para refrescar

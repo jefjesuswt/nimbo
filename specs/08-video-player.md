@@ -44,3 +44,13 @@ controles propios). Spec: visor de vídeo dedicado, sobre el mismo
 - mp4 1080p de 500 MB arranca < 3 s, seek funciona antes de bajar todo.
 - Doble tap, brillo, volumen, velocidad, PiP y vuelta, rotación sin cortar.
 - `.srt` hermano aparece y se puede apagar.
+
+## Implementado (v1)
+
+`ui/telegram/VideoViewer.kt`. Diferencias con lo de arriba:
+- Ajustar/rellenar es un botón, no pellizco; sin seek por arrastre
+  horizontal (la barra basta). Siguientes si se echan de menos.
+- Arranca tras bajar el archivo entero (igual que el audio): sin
+  streaming progresivo todavía.
+- Vídeo horizontal gira a horizontal solo; botón de rotar para cambiar.
+- Subtítulos: solo `.srt` / `.vtt` hermanos (no embebidos).

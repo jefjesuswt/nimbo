@@ -236,4 +236,11 @@
         <item quantity="one">%d fichier supprimé</item>
         <item quantity="other">%d fichiers supprimés</item>
     </plurals>
+    <string name="subtitles">Sous-titres</string>
+    <string name="fit_screen">Ajuster à l\'écran</string>
+    <string name="fill_screen">Remplir l\'écran</string>
+    <string name="rotate">Pivoter</string>
+    <string name="pip">Picture-in-picture</string>
+    <string name="brightness_pct">Luminosité %1$d %%</string>
+    <string name="volume_pct">Volume %1$d %%</string>
 </resources>

@@ -93,4 +93,21 @@ class TelegramTest {
         assertEquals(0L, resumeFrom(0, 40 * min))
         assertEquals(5 * min, resumeFrom(5 * min, 0))          // duración desconocida: retoma
     }
+
+    @Test fun videoGestures() {
+        assertEquals(0L, com.nimbo.ui.telegram.seekTarget(5_000, 60_000, -10_000))
+        assertEquals(60_000L, com.nimbo.ui.telegram.seekTarget(55_000, 60_000, 10_000))
+        assertEquals(30_000L, com.nimbo.ui.telegram.seekTarget(20_000, 0, 10_000))
+        assertEquals(0.75f, com.nimbo.ui.telegram.dragLevel(0.5f, -250f, 1000f), 0.001f)
+        assertEquals(1f, com.nimbo.ui.telegram.dragLevel(0.9f, -500f, 1000f), 0.001f)
+        assertEquals(0f, com.nimbo.ui.telegram.dragLevel(0.1f, 500f, 1000f), 0.001f)
+    }
+
+    @Test fun subtitlePick() {
+        val names = listOf("Movie.mp4", "movie.srt", "movie.es.srt", "other.srt", "movie.en.vtt", "notes.txt")
+        assertEquals("movie.es.srt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "es"))
+        assertEquals("movie.srt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "fr"))
+        assertEquals("movie.en.vtt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "en"))
+        assertEquals(null, com.nimbo.ui.telegram.pickSubtitle("clip.mp4", names, "es"))
+    }
 }

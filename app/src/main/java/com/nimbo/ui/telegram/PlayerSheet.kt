@@ -477,11 +477,5 @@ private fun ActButton(active: Boolean, onClick: () -> Unit, label: String, icon:
 @Composable
 private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier {
     val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    return this.then(
-        clickable(
-            interactionSource = source,
-            indication = null,
-            onClick = onClick
-        )
-    )
+    return clickable(interactionSource = source, indication = null, onClick = onClick)
 }

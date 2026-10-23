@@ -273,7 +273,16 @@ fun TelegramRoute(tab: String = "files") {
         dir = parentOf(dir)
     }
     // El visor/lector esconde la navbar (vuelve al cerrar).
-    LaunchedEffect(viewerIdx, textFile) { ViewerNav.open = viewerIdx != null || textFile != null }
+    // Vídeo (spec 08): cola = vídeos de la misma carpeta.
+    var videoAt by remember { mutableStateOf<Pair<List<TgFile>, Int>?>(null) }
+    fun openVideo(f: TgFile) {
+        val q = cloud.filter { it.kind == TgKind.VIDEO && it.folder == f.folder }.sortedBy { it.name.lowercase() }
+            .ifEmpty { listOf(f) }
+        videoAt = q to q.indexOfFirst { it.id == f.id }.coerceAtLeast(0)
+    }
+    LaunchedEffect(viewerIdx, textFile, videoAt) {
+        ViewerNav.open = viewerIdx != null || textFile != null || videoAt != null
+    }
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
@@ -624,7 +633,8 @@ fun TelegramRoute(tab: String = "files") {
                     // Sin parpadeo: con lotes activos la card ya muestra progreso.
                     syncing = syncing && batches.isEmpty(),
                     onPlay = { f ->
-                        if (f.kind == TgKind.AUDIO || f.kind == TgKind.VIDEO) playFile(f)
+                        if (f.kind == TgKind.VIDEO) openVideo(f)
+                        else if (f.kind == TgKind.AUDIO) playFile(f)
                         else if (f.kind == TgKind.DOC && isTextFile(f.name)) textFile = f
                         else scope.launch { snack.showSnackbar(res.getString(R.string.streaming_name, f.name)) }
                     },
@@ -651,6 +661,7 @@ fun TelegramRoute(tab: String = "files") {
                                 viewerIdx = l.indexOfFirst { it.id == f.id }.coerceAtLeast(0)
                             }
                             f.kind == TgKind.DOC && isTextFile(f.name) -> textFile = f
+                            f.kind == TgKind.VIDEO -> openVideo(f)
                             else -> scope.launch {
                                 if (!TgView.open(ctx, f)) snack.showSnackbar(res.getString(R.string.couldnt_open, f.showTitle()))
                             }
@@ -744,6 +755,9 @@ fun TelegramRoute(tab: String = "files") {
             onClose = { sheet = false },
             onMsg = { m -> scope.launch { snack.showSnackbar(m) } }
         )
+    }
+    videoAt?.let { (q, i) ->
+        VideoViewer(queue = q, startIndex = i, onClose = { videoAt = null })
     }
     viewerIdx?.let { idx ->
         PhotoViewer(
