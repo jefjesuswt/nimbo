@@ -32,6 +32,16 @@ Grab the latest APK from [Releases](https://github.com/jefjesuswt/nimbo/releases
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Two flavors:
+
+- `public` (default, the one in Releases): translation runs **on the phone** with ML Kit.
+- `personal`: also offers the unofficial Google Translate web endpoint (sends the text to Google). Not published.
+
+```sh
+./gradlew assemblePublicRelease     # GitHub Releases
+./gradlew assemblePersonalDebug     # your own phone
+```
+
 Needs JDK 17 and the Android SDK (`ANDROID_HOME`, defaults to `~/Android/Sdk`).
 
 ## License

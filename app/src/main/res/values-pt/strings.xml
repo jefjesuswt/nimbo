@@ -247,4 +247,17 @@
     <string name="about_made_by">Feito por %1$s</string>
     <string name="about_built_with">Feito com TDLib, Media3 e Jetpack Compose</string>
     <string name="about_not_affiliated">Sem vínculo com o Telegram.</string>
+    <string name="tr_group">Tradução</string>
+    <string name="tr_provider">Provedor de tradução</string>
+    <string name="tr_mlkit">No celular (ML Kit)</string>
+    <string name="tr_google_web">Google Tradutor (web)</string>
+    <string name="tr_on_device">o texto não sai do celular</string>
+    <string name="tr_sends_google">envia o texto ao Google</string>
+    <string name="tr_downloading_model">Baixando modelo de idioma…</string>
+    <string name="tr_working">Traduzindo…</string>
+    <string name="tr_need_wifi">Conecte-se ao Wi-Fi para baixar o modelo de idioma (cerca de 30 MB) ou permita dados móveis em Mais.</string>
+    <string name="tr_cant_detect">Não foi possível detectar o idioma. Escolha manualmente.</string>
+    <string name="tr_unsupported">Este idioma não está disponível para tradução no celular.</string>
+    <string name="tr_models_mobile">Baixar modelos de idioma com dados móveis</string>
+    <string name="tr_models_mobile_sub">Cerca de 30 MB por idioma</string>
 </resources>

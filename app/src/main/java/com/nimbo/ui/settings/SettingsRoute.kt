@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -138,6 +139,7 @@ fun SettingsRoute(
                     }
                 }
                 TelegramGroup()
+                TranslationGroup()
                 Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
                         icon = Icons.Filled.Tune, title = stringResource(R.string.settings_notif_categories),
@@ -185,6 +187,49 @@ fun SettingsRoute(
         )
     }
     if (aboutDlg) AboutDialog(onDismiss = { aboutDlg = false })
+}
+
+// Traducción del lector: proveedor (solo si hay más de uno, build
+// personal) + permitir bajar modelos de ML Kit con datos móviles.
+@Composable
+private fun TranslationGroup() {
+    val ctx = LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("nimbo", android.content.Context.MODE_PRIVATE) }
+    val all = com.nimbo.ui.telegram.Translators.all
+    var cur by remember { mutableStateOf(com.nimbo.ui.telegram.Translators.current(ctx)) }
+    var dlg by remember { mutableStateOf(false) }
+    var mobile by remember { mutableStateOf(prefs.getBoolean(com.nimbo.ui.telegram.Translators.MODELS_MOBILE, false)) }
+    fun note(t: com.nimbo.ui.telegram.Translator) = if (t.onDevice) R.string.tr_on_device else R.string.tr_sends_google
+    Group(stringResource(R.string.tr_group)) {
+        if (all.size > 1) PrefRow(
+            icon = Icons.Filled.Translate,
+            title = stringResource(R.string.tr_provider),
+            sub = stringResource(cur.label) + " · " + stringResource(note(cur)),
+            onClick = { dlg = true }
+        )
+        PrefRow(
+            icon = Icons.Filled.Translate,
+            title = stringResource(R.string.tr_models_mobile),
+            sub = stringResource(R.string.tr_models_mobile_sub),
+            trailing = {
+                Switch(mobile, {
+                    mobile = it
+                    prefs.edit().putBoolean(com.nimbo.ui.telegram.Translators.MODELS_MOBILE, it).apply()
+                })
+            }
+        )
+    }
+    if (dlg) RadioDialog(
+        title = stringResource(R.string.tr_provider),
+        options = all.map { it.id to stringResource(it.label) + " · " + stringResource(note(it)) },
+        initial = cur.id,
+        onDismiss = { dlg = false },
+        onConfirm = { id ->
+            dlg = false
+            com.nimbo.ui.telegram.Translators.set(ctx, id)
+            cur = com.nimbo.ui.telegram.Translators.current(ctx)
+        }
+    )
 }
 
 // Cada idioma con su propio nombre. "" = el del sistema.

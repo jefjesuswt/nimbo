@@ -5,10 +5,11 @@ música (player), fotos y texto. Kotlin + Compose Material 3. Rendimiento
 primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 
 ## Comandos
-- Build: `./gradlew assembleDebug`
-- Tests: `./gradlew testDebugUnitTest`
-- Lint: `./gradlew lintDebug`
-- Instalar al celu (WiFi adb): `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+- Flavors (dimensión `dist`): `public` (por defecto; la de Releases, solo ML Kit) y `personal` (añade el traductor web de Google; código en `src/personal/`, nunca en `main`).
+- Build: `./gradlew assemblePublicDebug` · personal: `./gradlew assemblePersonalDebug`
+- Tests: `./gradlew testPublicDebugUnitTest testPersonalDebugUnitTest`
+- Lint: `./gradlew lintPublicDebug`
+- Instalar al celu (WiFi adb): `adb install -r app/build/outputs/apk/personal/debug/app-personal-debug.apk`
 - Logs: `adb logcat --pid=$(adb shell pidof com.nimbo)`
 - `gradlew` es shim al Gradle cacheado + JDK 17 (ver archivo). Java 27 default rompe AGP.
 
@@ -28,7 +29,7 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 
 ## Releases
 - CHANGELOG.md (Keep a Changelog, en inglés): lo nuevo va en [Unreleased]; al publicar se pasa a [x.y.z] - fecha.
-- Subir versionName (semver) y versionCode (+1) en app/build.gradle.kts; tag vX.Y.Z; gh release create con el APK release y la sección del CHANGELOG como notas.
+- Subir versionName (semver) y versionCode (+1) en app/build.gradle.kts; tag vX.Y.Z; `./gradlew assemblePublicRelease` (nunca el personal); gh release create con ese APK y la sección del CHANGELOG como notas. Comprobar que el APK no contiene `translate.googleapis.com`.
 - Firma: NIMBO_KEYSTORE / NIMBO_KEYSTORE_PASSWORD en ~/.gradle/gradle.properties (nunca en el repo). Sin esa clave no se pueden publicar actualizaciones instalables encima.
 
 ## Formato en la nube (contrato, no romper)

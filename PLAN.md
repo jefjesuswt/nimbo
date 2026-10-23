@@ -24,6 +24,10 @@
 - [ ] 7h2 Navegar/reproducir dentro de comprimidos (necesita volver a meter Commons Compress)
 - [ ] Antes de publicar: `applicationId` definitivo (único en Play), R8 con keep rules de TDLib
 
+## Traducción
+- [x] Proveedores de traducción: ML Kit en el teléfono (public) + Google web solo en el flavor `personal`
+- [ ] Verificar en celu: primer uso descarga modelo (Wi-Fi), "auto" detecta idioma, aviso sin Wi-Fi, selector de proveedor en el build personal
+
 ## Fase 1: Roadmap (specs 08-14)
 - [x] 08 Reproductor de vídeo propio (pantalla completa, gestos, velocidad, subtítulos .srt/.vtt, PiP)
 - [x] 08 verificar en celu (mp4 grande, gestos, PiP, .srt) · [x] streaming progresivo · [ ] pellizco/seek horizontal
