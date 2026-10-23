@@ -226,4 +226,28 @@
     <string name="pip">ピクチャー イン ピクチャー</string>
     <string name="brightness_pct">明るさ %1$d%%</string>
     <string name="volume_pct">音量 %1$d%%</string>
+    <string name="backup_title">自動バックアップ</string>
+    <string name="backup_switch_sub">選んだフォルダの新しい写真と動画をアップロード</string>
+    <string name="backup_add_folder">フォルダを追加</string>
+    <string name="backup_remove">削除</string>
+    <string name="backup_wifi">Wi-Fi のみ</string>
+    <string name="backup_wifi_sub">モバイルデータを使わない</string>
+    <string name="backup_charging">充電中のみ</string>
+    <string name="backup_now">今すぐバックアップ</string>
+    <string name="backup_last">前回のバックアップ: %1$s</string>
+    <string name="backup_never">まだバックアップはありません</string>
+    <string name="backup_error">前回のエラー: %1$s</string>
+    <string name="backup_existing_title">既存のファイルもバックアップしますか？</string>
+    <string name="backup_upload_all">すべてアップロード</string>
+    <string name="backup_only_new">新しいものだけ</string>
+    <string name="backup_progress">バックアップ中 %1$d/%2$d</string>
+    <string name="backup_channel">バックアップ</string>
+    <string name="backup_no_folders">フォルダを追加して開始</string>
+    <string name="backup_dest">保存先: %1$s</string>
+    <plurals name="backup_pending">
+        <item quantity="other">保留中 %d 件</item>
+    </plurals>
+    <plurals name="backup_existing_body">
+        <item quantity="other">このフォルダにはすでに %d 件の写真と動画があります。これもアップロードしますか？それともこれ以降の新しいものだけにしますか？</item>
+    </plurals>
 </resources>

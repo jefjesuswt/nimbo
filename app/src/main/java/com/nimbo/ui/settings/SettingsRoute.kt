@@ -28,6 +28,13 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import com.nimbo.ui.common.RadioDialog
 import com.nimbo.ui.common.SectionLabel
 import com.nimbo.ui.common.NimboScaffold
+import kotlinx.coroutines.launch
 
 // s-settings de index.html, filas estilo Mihon (icono plano, sin círculo).
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,6 +145,7 @@ fun SettingsRoute(
                     }
                 }
                 TelegramGroup()
+                BackupGroup()
                 Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
                         icon = Icons.Filled.Tune, title = stringResource(R.string.settings_notif_categories),
@@ -287,6 +296,142 @@ private fun TelegramGroup() {
                 }) { Text(stringResource(R.string.forget_logout)) }
             }
         }
+    }
+}
+
+// Copia automática (spec 10): carpetas SAF + condiciones + estado. El
+// Worker escribe el estado en prefs; se re-lee al cambiar.
+@Composable
+private fun BackupGroup() {
+    val ctx = LocalContext.current
+    val cs = MaterialTheme.colorScheme
+    val res = androidx.compose.ui.platform.LocalResources.current
+    val prefs = remember { com.nimbo.backup.BackupPrefs.of(ctx) }
+    var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(prefs) {
+        val l = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+            if (k?.startsWith("backup_") == true) tick++
+        }
+        prefs.registerOnSharedPreferenceChangeListener(l)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(l) }
+    }
+    @Suppress("UNUSED_VARIABLE") val t = tick // relee prefs al cambiar
+    val on = prefs.getBoolean(com.nimbo.backup.BackupPrefs.ON, false)
+    val trees = com.nimbo.backup.BackupPrefs.trees(ctx)
+    val names = remember(trees) { trees.associateWith { com.nimbo.backup.Backup.treeName(ctx, it) } }
+    fun apply(edit: android.content.SharedPreferences.Editor.() -> Unit) {
+        prefs.edit().apply(edit).apply()
+        com.nimbo.backup.Backup.schedule(ctx)
+    }
+    fun addTree(uri: String) {
+        apply { putStringSet(com.nimbo.backup.BackupPrefs.TREES, trees + uri) }
+        com.nimbo.backup.Backup.runNow(ctx)
+    }
+    // Primera vez por carpeta: ¿subir también lo que ya hay? (uri, cuántos)
+    var ask by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val n = com.nimbo.backup.Backup.scan(ctx, uri.toString()).size
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (n == 0) addTree(uri.toString()) else ask = uri.toString() to n
+            }
+        }
+    }
+    Group(stringResource(R.string.backup_title)) {
+        PrefRow(
+            icon = Icons.Filled.CloudUpload, title = stringResource(R.string.backup_title),
+            sub = stringResource(R.string.backup_switch_sub),
+            trailing = {
+                Switch(on, {
+                    apply { putBoolean(com.nimbo.backup.BackupPrefs.ON, it) }
+                    if (it) com.nimbo.backup.Backup.runNow(ctx)
+                })
+            }
+        )
+        if (on) {
+            trees.forEach { tree ->
+                val name = names[tree].orEmpty()
+                PrefRow(
+                    icon = Icons.Filled.Folder, title = name.ifEmpty { tree.substringAfterLast("%3A") },
+                    sub = stringResource(R.string.backup_dest, com.nimbo.backup.backupFolder(name)),
+                    trailing = {
+                        IconButton(onClick = {
+                            runCatching {
+                                ctx.contentResolver.releasePersistableUriPermission(
+                                    android.net.Uri.parse(tree), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                )
+                            }
+                            apply { putStringSet(com.nimbo.backup.BackupPrefs.TREES, trees - tree) }
+                        }) { Icon(Icons.Filled.Close, stringResource(R.string.backup_remove)) }
+                    }
+                )
+            }
+            PrefRow(
+                icon = Icons.Filled.CreateNewFolder, title = stringResource(R.string.backup_add_folder),
+                sub = if (trees.isEmpty()) stringResource(R.string.backup_no_folders) else "",
+                onClick = { pick.launch(null) }
+            )
+            PrefRow(
+                icon = Icons.Filled.Wifi, title = stringResource(R.string.backup_wifi),
+                sub = stringResource(R.string.backup_wifi_sub),
+                trailing = {
+                    Switch(prefs.getBoolean(com.nimbo.backup.BackupPrefs.WIFI, true), {
+                        apply { putBoolean(com.nimbo.backup.BackupPrefs.WIFI, it) }
+                    })
+                }
+            )
+            PrefRow(
+                icon = Icons.Filled.BatteryChargingFull, title = stringResource(R.string.backup_charging),
+                sub = "",
+                trailing = {
+                    Switch(prefs.getBoolean(com.nimbo.backup.BackupPrefs.CHARGING, false), {
+                        apply { putBoolean(com.nimbo.backup.BackupPrefs.CHARGING, it) }
+                    })
+                }
+            )
+            val last = prefs.getLong(com.nimbo.backup.BackupPrefs.LAST, 0L)
+            val pending = prefs.getInt(com.nimbo.backup.BackupPrefs.PENDING, 0)
+            val err = prefs.getString(com.nimbo.backup.BackupPrefs.ERROR, null)
+            val status = listOfNotNull(
+                if (last == 0L) res.getString(R.string.backup_never)
+                else res.getString(R.string.backup_last, android.text.format.DateUtils.getRelativeTimeSpanString(last).toString()),
+                if (pending > 0) res.getQuantityString(R.plurals.backup_pending, pending, pending) else null,
+                err?.let { res.getString(R.string.backup_error, it) }
+            ).joinToString("\n")
+            PrefRow(
+                icon = Icons.Filled.Sync, title = stringResource(R.string.backup_now),
+                sub = status,
+                onClick = { com.nimbo.backup.Backup.runNow(ctx) }
+            )
+        }
+    }
+    ask?.let { (uri, n) ->
+        AlertDialog(
+            onDismissRequest = { ask = null },
+            title = { Text(stringResource(R.string.backup_existing_title)) },
+            text = { Text(res.getQuantityString(R.plurals.backup_existing_body, n, n)) },
+            confirmButton = {
+                TextButton(onClick = { ask = null; addTree(uri) }) { Text(stringResource(R.string.backup_upload_all)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    ask = null
+                    // Solo lo nuevo: lo existente queda marcado sin subir.
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val log = com.nimbo.backup.BackupLog(ctx)
+                        com.nimbo.backup.Backup.scan(ctx, uri).forEach { log.mark(it, 0L) }
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { addTree(uri) }
+                    }
+                }) { Text(stringResource(R.string.backup_only_new)) }
+            }
+        )
     }
 }
 

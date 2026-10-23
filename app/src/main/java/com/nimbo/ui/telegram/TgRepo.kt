@@ -924,6 +924,20 @@ object TgRepo {
         }
     }
 
+    // Último error de SendMessage (copia automática lee FLOOD_WAIT_X de aquí).
+    @Volatile var lastSendError: String? = null
+        private set
+
+    // Copia automática (spec 10): un archivo, en serie con el resto de
+    // subidas. Devuelve el messageId o null si falló.
+    suspend fun uploadForBackup(ctx: Context, uri: Uri, folder: String, name: String, size: Long): Long? {
+        init(ctx)
+        lastSendError = null
+        val sent = mutableListOf<Long>()
+        val ok = upMutex.withLock { runOne(UpJob(uri, folder, name, size), {}, sent) }
+        return if (ok) sent.firstOrNull() ?: 0L else null
+    }
+
     private suspend fun runOne(job: UpJob, report: (Float) -> Unit, sentIds: MutableList<Long>): Boolean {
         val ctx = app ?: return false
         val stage = stageJob(job) ?: return false
@@ -948,6 +962,7 @@ object TgRepo {
             }
             if (sent is TdApi.Error) {
                 android.util.Log.w("TgUpload", "SEND-ERR ${job.name}: ${sent.code} ${sent.message}")
+                lastSendError = sent.message
                 throw IllegalStateException(sent.message)
             }
             // Id del archivo propio: el wait solo vale para este (antes

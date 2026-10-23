@@ -243,4 +243,30 @@
     <string name="pip">Picture-in-picture</string>
     <string name="brightness_pct">Luminosité %1$d %%</string>
     <string name="volume_pct">Volume %1$d %%</string>
+    <string name="backup_title">Sauvegarde automatique</string>
+    <string name="backup_switch_sub">Envoie les nouvelles photos et vidéos des dossiers choisis</string>
+    <string name="backup_add_folder">Ajouter un dossier</string>
+    <string name="backup_remove">Retirer</string>
+    <string name="backup_wifi">Wi-Fi uniquement</string>
+    <string name="backup_wifi_sub">Ne pas utiliser les données mobiles</string>
+    <string name="backup_charging">Uniquement en charge</string>
+    <string name="backup_now">Sauvegarder maintenant</string>
+    <string name="backup_last">Dernière sauvegarde : %1$s</string>
+    <string name="backup_never">Aucune sauvegarde pour l\'instant</string>
+    <string name="backup_error">Dernière erreur : %1$s</string>
+    <string name="backup_existing_title">Sauvegarder aussi les fichiers existants ?</string>
+    <string name="backup_upload_all">Tout envoyer</string>
+    <string name="backup_only_new">Seulement les nouveaux</string>
+    <string name="backup_progress">Sauvegarde %1$d/%2$d</string>
+    <string name="backup_channel">Sauvegarde</string>
+    <string name="backup_no_folders">Ajoutez un dossier pour commencer</string>
+    <string name="backup_dest">Enregistré dans %1$s</string>
+    <plurals name="backup_pending">
+        <item quantity="one">%d fichier en attente</item>
+        <item quantity="other">%d fichiers en attente</item>
+    </plurals>
+    <plurals name="backup_existing_body">
+        <item quantity="one">Ce dossier contient déjà %d photo ou vidéo. L\'envoyer aussi, ou seulement les nouveautés à partir de maintenant ?</item>
+        <item quantity="other">Ce dossier contient déjà %d photos et vidéos. Les envoyer aussi, ou seulement les nouveautés à partir de maintenant ?</item>
+    </plurals>
 </resources>

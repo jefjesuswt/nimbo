@@ -57,6 +57,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleShare(intent)
+        // Copia automática: al abrir, un pase si está activa (restricciones aplican).
+        com.nimbo.backup.Backup.runNow(this)
         enableEdgeToEdge()
         // Notificaciones de progreso (Android 13+ pide permiso en runtime).
         if (android.os.Build.VERSION.SDK_INT >= 33 &&

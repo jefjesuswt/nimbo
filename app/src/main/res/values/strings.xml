@@ -236,4 +236,30 @@
     <string name="pip">Picture-in-picture</string>
     <string name="brightness_pct">Brightness %1$d%%</string>
     <string name="volume_pct">Volume %1$d%%</string>
+    <string name="backup_title">Auto backup</string>
+    <string name="backup_switch_sub">Upload new photos and videos from chosen folders</string>
+    <string name="backup_add_folder">Add folder</string>
+    <string name="backup_remove">Remove</string>
+    <string name="backup_wifi">Wi-Fi only</string>
+    <string name="backup_wifi_sub">Don\'t use mobile data</string>
+    <string name="backup_charging">Only while charging</string>
+    <string name="backup_now">Back up now</string>
+    <string name="backup_last">Last backup: %1$s</string>
+    <string name="backup_never">No backup yet</string>
+    <string name="backup_error">Last error: %1$s</string>
+    <string name="backup_existing_title">Back up existing files?</string>
+    <string name="backup_upload_all">Upload all</string>
+    <string name="backup_only_new">Only new</string>
+    <string name="backup_progress">Backing up %1$d/%2$d</string>
+    <string name="backup_channel">Backup</string>
+    <string name="backup_no_folders">Add a folder to start</string>
+    <string name="backup_dest">Saves to %1$s</string>
+    <plurals name="backup_pending">
+        <item quantity="one">%d file pending</item>
+        <item quantity="other">%d files pending</item>
+    </plurals>
+    <plurals name="backup_existing_body">
+        <item quantity="one">This folder already has %d photo or video. Upload it too, or only new ones from now on?</item>
+        <item quantity="other">This folder already has %d photos and videos. Upload them too, or only new ones from now on?</item>
+    </plurals>
 </resources>

@@ -38,6 +38,11 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <!-- Copia automática (spec 10): WorkManager en primer plano tipo dataSync (Android 14+). -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
         <!-- Uploads Telegram en 2do plano (progreso + sobrevive bloqueo). -->
         <service
             android:name=".ui.telegram.UploadService"

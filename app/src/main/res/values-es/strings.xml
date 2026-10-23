@@ -243,4 +243,30 @@
     <string name="pip">Imagen en imagen</string>
     <string name="brightness_pct">Brillo %1$d%%</string>
     <string name="volume_pct">Volumen %1$d%%</string>
+    <string name="backup_title">Copia automática</string>
+    <string name="backup_switch_sub">Sube las fotos y videos nuevos de las carpetas elegidas</string>
+    <string name="backup_add_folder">Agregar carpeta</string>
+    <string name="backup_remove">Quitar</string>
+    <string name="backup_wifi">Solo con Wi-Fi</string>
+    <string name="backup_wifi_sub">No usar datos móviles</string>
+    <string name="backup_charging">Solo mientras se carga</string>
+    <string name="backup_now">Copiar ahora</string>
+    <string name="backup_last">Última copia: %1$s</string>
+    <string name="backup_never">Aún no hay copias</string>
+    <string name="backup_error">Último error: %1$s</string>
+    <string name="backup_existing_title">¿Subir también lo que ya hay?</string>
+    <string name="backup_upload_all">Subir todo</string>
+    <string name="backup_only_new">Solo lo nuevo</string>
+    <string name="backup_progress">Copiando %1$d/%2$d</string>
+    <string name="backup_channel">Copia de seguridad</string>
+    <string name="backup_no_folders">Agrega una carpeta para empezar</string>
+    <string name="backup_dest">Se guarda en %1$s</string>
+    <plurals name="backup_pending">
+        <item quantity="one">%d archivo pendiente</item>
+        <item quantity="other">%d archivos pendientes</item>
+    </plurals>
+    <plurals name="backup_existing_body">
+        <item quantity="one">Esta carpeta ya tiene %d foto o video. ¿Subirla también o solo lo nuevo desde ahora?</item>
+        <item quantity="other">Esta carpeta ya tiene %d fotos y videos. ¿Subirlos también o solo lo nuevo desde ahora?</item>
+    </plurals>
 </resources>

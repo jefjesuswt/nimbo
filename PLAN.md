@@ -33,7 +33,8 @@
 - [x] 09d Ordenar (nombre/fecha/tamaño/duración, asc/desc, por pestaña)
 - [ ] 09a barra de progreso en lista/grid para archivos empezados
 - [x] Verificar 09a-d en celu
-- [ ] 10 Copia automática de la galería (estilo Google Fotos, WorkManager)
+- [x] 10 Copia automática de la galería (estilo Google Fotos, WorkManager)
+- [ ] 10 verificar en celu (carpeta SAF, "solo lo nuevo", Wi-Fi only, reinicio, FLOOD_WAIT) · [ ] liberar espacio (v2)
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
 - [ ] 13 Archivos > 2 GB (troceo)

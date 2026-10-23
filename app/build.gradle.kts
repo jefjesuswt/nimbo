@@ -49,6 +49,8 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.5.0-beta01")
     implementation("androidx.compose.material3:material3-window-size-class")
     implementation("androidx.documentfile:documentfile:1.0.1")
+    // Copia automática (spec 10): reintentos + restricciones Wi-Fi/carga + sobrevive reinicios.
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
     // Nube (spec 07): TDLib MTProto + secrets cifrados.
     implementation("com.github.tdlibx:td:1.8.56")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

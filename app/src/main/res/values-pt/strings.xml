@@ -243,4 +243,30 @@
     <string name="pip">Picture-in-picture</string>
     <string name="brightness_pct">Brilho %1$d%%</string>
     <string name="volume_pct">Volume %1$d%%</string>
+    <string name="backup_title">Backup automático</string>
+    <string name="backup_switch_sub">Envia fotos e vídeos novos das pastas escolhidas</string>
+    <string name="backup_add_folder">Adicionar pasta</string>
+    <string name="backup_remove">Remover</string>
+    <string name="backup_wifi">Somente Wi-Fi</string>
+    <string name="backup_wifi_sub">Não usar dados móveis</string>
+    <string name="backup_charging">Somente carregando</string>
+    <string name="backup_now">Fazer backup agora</string>
+    <string name="backup_last">Último backup: %1$s</string>
+    <string name="backup_never">Nenhum backup ainda</string>
+    <string name="backup_error">Último erro: %1$s</string>
+    <string name="backup_existing_title">Enviar também os arquivos existentes?</string>
+    <string name="backup_upload_all">Enviar tudo</string>
+    <string name="backup_only_new">Só os novos</string>
+    <string name="backup_progress">Fazendo backup %1$d/%2$d</string>
+    <string name="backup_channel">Backup</string>
+    <string name="backup_no_folders">Adicione uma pasta para começar</string>
+    <string name="backup_dest">Salva em %1$s</string>
+    <plurals name="backup_pending">
+        <item quantity="one">%d arquivo pendente</item>
+        <item quantity="other">%d arquivos pendentes</item>
+    </plurals>
+    <plurals name="backup_existing_body">
+        <item quantity="one">Esta pasta já tem %d foto ou vídeo. Enviar também ou só o que for novo daqui em diante?</item>
+        <item quantity="other">Esta pasta já tem %d fotos e vídeos. Enviar também ou só os novos daqui em diante?</item>
+    </plurals>
 </resources>
