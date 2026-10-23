@@ -276,4 +276,6 @@
         <item quantity="one">%d archivo sigue fallando</item>
         <item quantity="other">%d archivos siguen fallando</item>
     </plurals>
+    <string name="backup_started">Copia iniciada</string>
+    <string name="backup_waiting_wifi">Esperando Wi-Fi para copiar</string>
 </resources>

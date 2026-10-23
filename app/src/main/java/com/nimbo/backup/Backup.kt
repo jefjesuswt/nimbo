@@ -218,13 +218,23 @@ object Backup {
         }
     }.getOrNull()
 
-    private fun constraints(ctx: Context): Constraints {
+    // manual = "Copiar ahora": orden del usuario, solo respeta Wi-Fi
+    // (no gastar datos); carga y batería son para la copia automática.
+    private fun constraints(ctx: Context, manual: Boolean = false): Constraints {
         val p = BackupPrefs.of(ctx)
         return Constraints.Builder()
             .setRequiredNetworkType(if (p.getBoolean(BackupPrefs.WIFI, true)) NetworkType.UNMETERED else NetworkType.CONNECTED)
-            .setRequiresCharging(p.getBoolean(BackupPrefs.CHARGING, false))
-            .setRequiresBatteryNotLow(true)
+            .setRequiresCharging(!manual && p.getBoolean(BackupPrefs.CHARGING, false))
+            .setRequiresBatteryNotLow(!manual)
             .build()
+    }
+
+    // ¿La red actual cumple "solo Wi-Fi"? (para avisar "esperando Wi-Fi").
+    fun networkOk(ctx: Context): Boolean {
+        if (!BackupPrefs.of(ctx).getBoolean(BackupPrefs.WIFI, true)) return true
+        val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java) ?: return false
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
     // Aplica ajustes: periódico cada hora (o lo cancela si está apagado).
@@ -243,15 +253,16 @@ object Backup {
         )
     }
 
-    // "Copiar ahora" y al abrir la app.
-    fun runNow(ctx: Context) {
+    // "Copiar ahora" (manual: ya, prioritaria) y al abrir la app (con las
+    // restricciones normales). REPLACE en manual: no quedar tras uno atascado.
+    fun runNow(ctx: Context, manual: Boolean = true) {
         if (!BackupPrefs.of(ctx).getBoolean(BackupPrefs.ON, false) || BackupPrefs.trees(ctx).isEmpty()) return
+        val req = OneTimeWorkRequestBuilder<BackupWorker>()
+            .setConstraints(constraints(ctx, manual))
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
+        if (manual) req.setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
         WorkManager.getInstance(ctx).enqueueUniqueWork(
-            NOW, ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<BackupWorker>()
-                .setConstraints(constraints(ctx))
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
-                .build()
+            NOW, if (manual) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, req.build()
         )
     }
 
@@ -321,6 +332,9 @@ object Backup {
 }
 
 class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    // Expedited en Android < 12 corre como servicio en primer plano.
+    override suspend fun getForegroundInfo(): ForegroundInfo = Backup.foreground(applicationContext, 0, 0)
+
     override suspend fun doWork(): Result = Backup.running.withLock {
         val ctx = applicationContext
         val prefs = BackupPrefs.of(ctx)

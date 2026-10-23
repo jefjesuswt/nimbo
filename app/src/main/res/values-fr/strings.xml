@@ -276,4 +276,6 @@
         <item quantity="one">%d fichier échoue toujours</item>
         <item quantity="other">%d fichiers échouent toujours</item>
     </plurals>
+    <string name="backup_started">Sauvegarde lancée</string>
+    <string name="backup_waiting_wifi">En attente du Wi-Fi pour sauvegarder</string>
 </resources>

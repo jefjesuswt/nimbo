@@ -409,7 +409,14 @@ private fun BackupGroup() {
             PrefRow(
                 icon = Icons.Filled.Sync, title = stringResource(R.string.backup_now),
                 sub = status,
-                onClick = { com.nimbo.backup.Backup.runNow(ctx) }
+                onClick = {
+                    com.nimbo.backup.Backup.runNow(ctx)
+                    android.widget.Toast.makeText(
+                        ctx,
+                        if (com.nimbo.backup.Backup.networkOk(ctx)) R.string.backup_started else R.string.backup_waiting_wifi,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
             )
             // Archivos que fallaron 5 veces: ya no se reintentan solos.
             var gaveUp by remember { mutableStateOf(prefs.getInt(com.nimbo.backup.BackupPrefs.GAVE_UP, 0)) }

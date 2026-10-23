@@ -269,4 +269,6 @@
         <item quantity="one">%d file keeps failing</item>
         <item quantity="other">%d files keep failing</item>
     </plurals>
+    <string name="backup_started">Backup started</string>
+    <string name="backup_waiting_wifi">Waiting for Wi-Fi to back up</string>
 </resources>

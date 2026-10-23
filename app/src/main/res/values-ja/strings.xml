@@ -256,4 +256,6 @@
     <plurals name="backup_gave_up">
         <item quantity="other">%d 件のファイルが失敗し続けています</item>
     </plurals>
+    <string name="backup_started">バックアップを開始しました</string>
+    <string name="backup_waiting_wifi">Wi-Fi 接続を待っています</string>
 </resources>
