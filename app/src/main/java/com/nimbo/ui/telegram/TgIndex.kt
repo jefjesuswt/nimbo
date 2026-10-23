@@ -38,6 +38,14 @@ class TgIndex(ctx: Context) :
         )
     }
 
+    fun positions(): Map<Long, Long> {
+        val out = mutableMapOf<Long, Long>()
+        readableDatabase.rawQuery("SELECT message_id, pos_ms FROM positions WHERE pos_ms > 0", null).use {
+            while (it.moveToNext()) out[it.getLong(0)] = it.getLong(1)
+        }
+        return out
+    }
+
     fun pos(messageId: Long): Long =
         readableDatabase.rawQuery("SELECT pos_ms FROM positions WHERE message_id=?", arrayOf(messageId.toString()))
             .use { if (it.moveToFirst()) it.getLong(0) else 0L }

@@ -233,7 +233,10 @@ object TgRepo {
     val keeps: StateFlow<Set<String>> = _keeps
 
     fun init(ctx: Context) {
-        if (index == null) index = TgIndex(ctx)
+        if (index == null) {
+            index = TgIndex(ctx)
+            scope.launch { runCatching { _positions.value = index?.positions().orEmpty() } }
+        }
         if (app == null) app = ctx.applicationContext
     }
 
@@ -285,7 +288,12 @@ object TgRepo {
 
     // Posición de reproducción (spec 9a). Escritura en IO, lectura directa
     // (el player la pide ya desde un hilo IO).
+    // Posiciones en memoria para la barra de progreso de lista/grid.
+    private val _positions = MutableStateFlow<Map<Long, Long>>(emptyMap())
+    val positions: StateFlow<Map<Long, Long>> = _positions
+
     fun savePos(messageId: Long, ms: Long) {
+        _positions.value = if (ms > 0) _positions.value + (messageId to ms) else _positions.value - messageId
         scope.launch { runCatching { index?.savePos(messageId, ms) } }
     }
 

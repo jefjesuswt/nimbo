@@ -1261,6 +1261,7 @@ private fun FilesView(
     compact: Boolean = false
 ) {
     val cs = MaterialTheme.colorScheme
+    val positions by TgRepo.positions.collectAsState()
     // Búsqueda: claves normalizadas una vez por cambio de nube, no por tecla.
     val terms = remember(query) { searchTerms(query) }
     val searching = terms.isNotEmpty()
@@ -1383,11 +1384,18 @@ private fun FilesView(
                         Column(Modifier.weight(1f)) {
                             Text(f.showTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                             Text(meta(f), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            // Empezado (9a): la onda (audio) o una barra fina marcan por dónde va.
+                            val saved = progressFrac(positions[f.messageId] ?: 0L, f.durSec)
                             if (f.kind == TgKind.AUDIO) {
                                 WaveBars(
                                     seed = f.id,
-                                    progress = if (current) playP else 0f,
+                                    progress = if (current) playP else saved,
                                     modifier = Modifier.fillMaxWidth().height(26.dp)
+                                )
+                            } else if (saved > 0f) {
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = { saved },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(3.dp)
                                 )
                             }
                         }
@@ -1497,7 +1505,7 @@ private fun FilesView(
                             } else if (f.kind == TgKind.AUDIO) {
                                 WaveBars(
                                     seed = f.id,
-                                    progress = if (current) playP else 0f,
+                                    progress = if (current) playP else progressFrac(positions[f.messageId] ?: 0L, f.durSec),
                                     modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp)
                                 )
                             } else {
@@ -1509,6 +1517,13 @@ private fun FilesView(
                                         else -> Icons.Filled.FolderZip
                                     },
                                     null, modifier = Modifier.size(48.dp), tint = cs.onSurfaceVariant
+                                )
+                            }
+                            val saved = progressFrac(positions[f.messageId] ?: 0L, f.durSec)
+                            if (saved > 0f && !current && bmp != null) {
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = { saved },
+                                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp)
                                 )
                             }
                             if (f.kind == TgKind.AUDIO) {

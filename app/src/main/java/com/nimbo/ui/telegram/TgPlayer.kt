@@ -43,6 +43,12 @@ fun resumeFrom(posMs: Long, durMs: Long): Long = when {
     else -> posMs
 }
 
+// Barra "empezado" en lista/grid: 0 si no se retomaría (corto o terminado).
+fun progressFrac(posMs: Long, durSec: Int): Float {
+    val dur = durSec * 1000L
+    return if (dur <= 0 || resumeFrom(posMs, dur) == 0L) 0f else (posMs.toFloat() / dur).coerceIn(0f, 1f)
+}
+
 fun nextRepeat(cur: String): String = when (cur) {
     "off" -> "all"
     "all" -> "one"
