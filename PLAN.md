@@ -30,13 +30,14 @@
 
 ## Arquitectura (spec 15, ADR 0007, ver docs/auditoria-arquitectura.md)
 - [x] Auditoría de arquitectura + ADR 0007 (capas + Hilt + ViewModels) + spec 15
-- [ ] 15.0 Limpieza: deps sin usar, version catalog, bugs A1-A8 (TgFile.equals, logout resetea sesión/índice, updates perdidos, LruCache)
-- [ ] 15.1 Hilt + core (TdClient, AppPrefs, scope/dispatchers)
-- [ ] 15.2 Partir TgRepo (CloudRepository, FileOps, TransferManager, PlaybackPositions)
-- [ ] 15.3 Player/media inyectados
-- [ ] 15.4 ViewModels por feature + partir TelegramRoute
-- [ ] 15.5 Navegación con rutas tipadas (fuera ViewerNav/VideoNav/PlayerNav)
-- [ ] 15.6 Cierre: sin `object` con estado, AGENTS.md y ADR 0007 aceptada
+- [x] 15.0 Limpieza: deps sin usar, version catalog, bugs A1-A8 (TgFile.equals, logout resetea sesión/índice, updates perdidos, LruCache)
+- [x] 15.1 Hilt + core (TdClient, AppPrefs, scope/dispatchers)
+- [x] 15.2 Partir TgRepo (CloudRepository, FileOps, TransferManager, PlaybackPositions)
+- [x] 15.3 Player/media inyectados
+- [x] 15.4 ViewModels por feature + partir TelegramRoute
+- [x] 15.5 Navegación con rutas tipadas (fuera ViewerNav/VideoNav/PlayerNav)
+- [x] 15.6 Cierre: sin `object` con estado, AGENTS.md y ADR 0007 aceptada
+- [ ] Verificar refactor en celu con cuenta real: lista, subir carpeta, cancelar, conflictos, mover/copiar/pegar, borrar+deshacer, player+notificación, vídeo+PiP, visor, lector+traducción, compartir desde otra app, logout→login con otra cuenta
 
 ## Fase 1: Roadmap (specs 08-14)
 - [x] 08 Reproductor de vídeo propio (pantalla completa, gestos, velocidad, subtítulos .srt/.vtt, PiP)

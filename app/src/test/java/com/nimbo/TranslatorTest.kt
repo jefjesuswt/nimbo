@@ -1,8 +1,8 @@
 package com.nimbo
 
-import com.nimbo.ui.telegram.Langs
-import com.nimbo.ui.telegram.chunkText
-import com.nimbo.ui.telegram.mlkitTag
+import com.nimbo.data.translate.Langs
+import com.nimbo.data.translate.chunkText
+import com.nimbo.data.translate.mlkitTag
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

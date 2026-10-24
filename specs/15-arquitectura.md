@@ -1,5 +1,7 @@
 # Spec 15 — Migración de arquitectura (ADR 0007)
 
+Estado: hecho (2026-10-24) salvo lo marcado como pendiente. Verificado: build public/personal, 54 tests, lint 0 errores, arranque + login hasta teléfono + logout en emulador API 37. Falta verificar en celu con cuenta real.
+
 Objetivo: pasar de `object`s globales y Composables gigantes a capas + Hilt + ViewModels **sin cambiar el comportamiento ni el formato en la nube**. Un PR por fase. Cada fase termina con `./gradlew testPublicDebugUnitTest testPersonalDebugUnitTest lintPublicDebug assemblePersonalDebug` en verde y verificación en el teléfono.
 
 Referencias: [auditoría](../docs/auditoria-arquitectura.md) (A*/B*/C* = hallazgos), [ADR 0007](../docs/adr/0007-capas-hilt-viewmodels.md).
@@ -49,4 +51,5 @@ Referencias: [auditoría](../docs/auditoria-arquitectura.md) (A*/B*/C* = hallazg
 ## 15.6 Cierre
 - Borrar las fachadas `object` que queden. Grep de `^object ` → solo puros/constantes.
 - Actualizar AGENTS.md (estructura, regla de dependencias) y la ADR 0007 → aceptado.
+- Pendiente (fuera de este refactor): migrar Slider/TabRow/ListItem/transformable deprecados; `MediaController` para la UI del player (B9).
 - Opcional: `targetSdk` al mínimo actual de Play (C3), R8 con keep rules de TDLib (C4), migrar `EncryptedSharedPreferences` (C5) en su propia spec.

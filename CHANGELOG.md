@@ -9,6 +9,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Changed
 - Translation in the text reader now runs on the phone with ML Kit: the text never leaves the device. Language models (about 30 MB each) download on first use, on Wi-Fi by default (can be allowed on mobile data in More).
 - The unofficial Google Translate web endpoint is no longer in the public build.
+- Internal rewrite of the app architecture (dependency injection, one ViewModel per screen, typed navigation). No change to how files are stored in Telegram.
+- Downloads now time out only when they stop making progress, so large files on slow connections no longer fail after 3 minutes.
+
+### Fixed
+- Renaming a track or finding its cover art now updates the list right away.
+- Signing out now clears the previous account's file list, offline index and playback positions.
+- Uploads and downloads no longer get marked as failed when Telegram reports progress in bursts.
+- Thumbnail and cover caches are capped, avoiding out-of-memory crashes in large libraries.
+- Renaming or moving a folder now moves the files directly inside it to the new path (they used to end up one level too deep).
+- Choosing "wrong number" on the code screen and sending the number again now shows the code screen.
+- Messages from the photo viewer, text reader and player (saved, failed…) are now visible.
 
 ## [1.0.0] - 2026-10-23
 

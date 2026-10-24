@@ -1,6 +1,6 @@
 # ADR 0007 — Capas, Hilt y ViewModels
 
-- Estado: propuesto
+- Estado: aceptado (implementado en spec 15)
 - Fecha: 2026-10-24
 - Sustituye: alternativa 3 de la ADR 0001 ("clean architecture… se introduce cuando exista motor"). El motor ya existe (TDLib, Media3, ML Kit).
 - Contexto: [auditoría](../auditoria-arquitectura.md). Hay 13 `object` globales con estado, ningún ViewModel, `TgRepo` tiene 1100 líneas y `TelegramRoute` 1760, y hay bugs causados por el diseño (A1-A8).
@@ -61,3 +61,15 @@ ui/common, ui/theme            se quedan como están
 - Dependencias nuevas: Hilt (`hilt-android` + KSP), `hilt-navigation-compose`, `kotlinx-serialization` (rutas tipadas) y `kotlinx-coroutines-test` (tests). Se va `material3-window-size-class`. Cambia la regla de AGENTS.md "mínimo dependencias" para estas; se actualiza al aceptar la ADR.
 - La migración es incremental (spec 15): cada fase compila, pasa tests y se verifica en el teléfono antes de la siguiente. Durante la transición, los `object` que queden pueden delegar en el `@Singleton` nuevo (fachada temporal marcada con `ponytail:`) para no romper a quien aún los llame.
 - Reversión: cada fase es un PR separado y se puede revertir por separado.
+
+## Implementación (2026-10-24)
+
+Lo hecho difiere del borrador en estos puntos:
+
+- `CaptionCodec` no es una clase: son funciones puras de primer nivel en `data/cloud/Captions.kt` (contrato) y `Library.kt` (árbol, álbumes, orden, búsqueda), igual que antes pero en su capa.
+- `FileOps` se llama `CloudOps`. El índice SQLite (`CloudIndex`) queda detrás de `CloudStore` para poder probar los repos sin Android.
+- `TdClient.send` sigue devolviendo `TdApi.Object` crudo; las llamadas nuevas usan `call<T>()` (`TdResult`) y `ok()`.
+- Las pestañas son destinos del NavHost (con `saveState`/`restoreState`). La hoja del player sigue siendo un overlay sobre el contenido (no es una ruta), abierta desde el minibar o al reproducir.
+- Thumbs y carátulas llegan a la UI por `LocalArtwork` (un `@Singleton` que provee la Activity, al estilo del ImageLoader de Coil), sin repetirlos en cada ViewModel.
+- La UI del player lee los `StateFlow` de `PlayerController`; `MediaController` queda pendiente (B9 a medias: ya no es global, pero comparte instancia con el servicio por inyección).
+- Kotlin pasa de 2.2.21 a 2.4.21: Navigation 2.10 / Lifecycle 2.11 traen kotlin-stdlib 2.4.

@@ -2,6 +2,7 @@
 
 - Fecha: 2026-10-24 · Base: `main` @ `ba234dd` (v1.0.0 + proveedores de traducción)
 - Alcance: `app/src/{main,public,personal,test}` (~8.7k líneas Kotlin, 1 módulo)
+- Estado: resuelta en la rama `refactor/arquitectura` (spec 15). Pendiente: C3-C5 y las deprecaciones de API.
 - Resultado: la arquitectura objetivo está en [ADR 0007](adr/0007-capas-hilt-viewmodels.md) y el plan de trabajo en [spec 15](../specs/15-arquitectura.md).
 
 ## Resumen
