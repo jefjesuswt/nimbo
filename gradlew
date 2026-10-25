@@ -6,7 +6,7 @@ export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
 WANT=$(grep -o 'gradle-[0-9.]*-bin' gradle/wrapper/gradle-wrapper.properties | head -1)
 VER=$(echo "$WANT" | sed 's/gradle-//; s/-bin//')
-GRADLE_BIN=$(find "$HOME/.gradle/wrapper/dists/${WANT}-bin" -path "*/${VER}/bin/gradle" -type f 2>/dev/null | head -1)
+GRADLE_BIN=$(find "$HOME/.gradle/wrapper/dists/${WANT}" /tmp/gradle-dist -path "*/gradle-${VER}/bin/gradle" -type f 2>/dev/null | head -1)
 if [ -z "$GRADLE_BIN" ]; then
   echo "Descargando Gradle $VER..." >&2
   mkdir -p /tmp/gradle-dist && cd /tmp/gradle-dist || exit 1
