@@ -1,5 +1,7 @@
 <p align="center"><img src="docs/logo.svg" width="96" alt="Nimbo"></p>
 
+<p align="center"><b>English</b> · <a href="README.es.md">Español</a></p>
+
 # Nimbo
 
 Your files, music and photos in your own Telegram Saved Messages, with real
@@ -27,7 +29,7 @@ Grab the latest APK from [Releases](https://github.com/jefjesuswt/nimbo/releases
 
 You get two different codes from Telegram: one (letters and numbers) to log in to
 my.telegram.org, and later a 5-digit one to sign in to Nimbo. Step by step, with
-the form fields and the usual "ERROR" fix: [docs/claves-telegram.md](docs/claves-telegram.md) (Spanish).
+the form fields and the usual "ERROR" fix: [docs/telegram-api-keys.md](docs/telegram-api-keys.md).
 
 ## Limits
 

@@ -1,3 +1,5 @@
+[English](telegram-api-keys.md) · **Español**
+
 # Cómo conseguir tus claves de Telegram y entrar en Nimbo
 
 Nimbo se conecta a Telegram como una app propia, con **tus** claves de API
@@ -135,23 +137,5 @@ Listo: verás tus archivos de Mensajes guardados.
 
 ## Límites de Telegram
 
-Todo vive como mensajes en tus Mensajes guardados, así que mandan los límites de
-Telegram:
-
-- **2 GB por archivo** (4 GB con Telegram Premium). Los más grandes fallan al
-  subir; Nimbo no los parte.
-- **El pie de foto (caption) admite 1024 caracteres** (2048 con Premium). Ahí van
-  la ruta de la carpeta y las etiquetas de música, así que nombres de carpeta
-  larguísimos o muy anidados pueden fallar al guardarse.
-- **Límites de velocidad.** Telegram frena a las cuentas que hacen muchas
-  peticiones seguidas. Mover o renombrar una carpeta con muchos archivos edita los
-  captions de uno en uno con una pausa, así que los lotes grandes tardan.
-- **Velocidad de descarga**: sin Premium puede ser menor; depende de Telegram.
-- **Las cuentas inactivas se borran.** Telegram borra la cuenta (y sus Mensajes
-  guardados) tras un tiempo sin usarla: 6 meses por defecto. Cámbialo en
-  Telegram → Ajustes → Privacidad y seguridad → Eliminar mi cuenta → Si me ausento
-  durante. Nimbo no es una copia de seguridad: guarda aparte lo que no puedas
-  perder.
-- **No es cifrado de extremo a extremo.** Mensajes guardados es un chat en la nube:
-  va cifrado en tránsito y se guarda en los servidores de Telegram.
-- El espacio total en Mensajes guardados no tiene un límite publicado.
+Límite de 2 GB por archivo, captions, cuentas inactivas y demás: ver
+[Límites en el README](../README.es.md#límites).
