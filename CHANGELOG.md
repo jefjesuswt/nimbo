@@ -6,6 +6,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- README and Telegram API keys guide in English and Spanish, and a Limits section (2 GB per file, caption length, inactive accounts…).
+
 ### Changed
 - Translation in the text reader now runs on the phone with ML Kit: the text never leaves the device. Language models (about 30 MB each) download on first use, on Wi-Fi by default (can be allowed on mobile data in More).
 - The unofficial Google Translate web endpoint is no longer in the public build.
@@ -20,6 +23,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Renaming or moving a folder now moves the files directly inside it to the new path (they used to end up one level too deep).
 - Choosing "wrong number" on the code screen and sending the number again now shows the code screen.
 - Messages from the photo viewer, text reader and player (saved, failed…) are now visible.
+- With the Dark theme on a phone set to light mode, the status bar icons were dark on dark and hard to see.
 
 ## [1.0.0] - 2026-10-23
 

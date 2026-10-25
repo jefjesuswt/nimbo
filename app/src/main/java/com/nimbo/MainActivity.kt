@@ -3,15 +3,18 @@ package com.nimbo
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,8 +48,16 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val ap by prefs.appearance.collectAsStateWithLifecycle()
+            val dark = ap.theme.isDark(isSystemInDarkTheme())
+            // Iconos de las barras según el tema de la app, no el del sistema
+            // (tema Oscuro con el sistema en claro dejaba iconos oscuros).
+            DisposableEffect(dark) {
+                val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                onDispose {}
+            }
             NimboTheme(
-                darkTheme = ap.theme.isDark(isSystemInDarkTheme()),
+                darkTheme = dark,
                 seed = ap.seed,
                 dynamicColor = ap.dynamic
             ) {
