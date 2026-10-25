@@ -1,6 +1,6 @@
 package com.nimbo
 
-import com.nimbo.ui.telegram.parseApiId
+import com.nimbo.core.tdlib.parseApiId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -1,21 +1,23 @@
 package com.nimbo
 
-import com.nimbo.ui.telegram.TgFile
-import com.nimbo.ui.telegram.TgKind
-import com.nimbo.ui.telegram.artGlyphFor
-import com.nimbo.ui.telegram.defaultCountry
-import com.nimbo.ui.telegram.filterTgFiles
-import com.nimbo.ui.telegram.formatBytes
-import com.nimbo.ui.telegram.fullPhone
-import com.nimbo.ui.telegram.isCodeOk
-import com.nimbo.ui.telegram.isPhoneOk
-import com.nimbo.ui.telegram.isTextFile
-import com.nimbo.ui.telegram.nextRepeat
-import com.nimbo.ui.telegram.resumeFrom
-import com.nimbo.ui.telegram.nextSpeed
-import com.nimbo.ui.telegram.nextTimer
-import org.junit.Test
+import com.nimbo.core.util.formatBytes
+import com.nimbo.data.cloud.KindFilter
+import com.nimbo.data.cloud.TgFile
+import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.filterTgFiles
+import com.nimbo.data.cloud.isTextFile
+import com.nimbo.feature.auth.defaultCountry
+import com.nimbo.feature.auth.fullPhone
+import com.nimbo.feature.auth.isCodeOk
+import com.nimbo.feature.auth.isPhoneOk
+import com.nimbo.player.RepeatMode
+import com.nimbo.player.artGlyphFor
+import com.nimbo.player.nextRepeat
+import com.nimbo.player.nextSpeed
+import com.nimbo.player.nextTimer
+import com.nimbo.player.resumeFrom
 import org.junit.Assert.assertEquals
+import org.junit.Test
 
 class TelegramTest {
     private val mock = listOf(
@@ -37,9 +39,9 @@ class TelegramTest {
     }
 
     @Test fun filters() {
-        assertEquals(2, filterTgFiles(mock, "all").size)
-        assertEquals(listOf("a"), filterTgFiles(mock, "audio").map { it.id })
-        assertEquals(listOf("b"), filterTgFiles(mock, "other").map { it.id })
+        assertEquals(2, filterTgFiles(mock, KindFilter.ALL).size)
+        assertEquals(listOf("a"), filterTgFiles(mock, KindFilter.AUDIO).map { it.id })
+        assertEquals(listOf("b"), filterTgFiles(mock, KindFilter.OTHER).map { it.id })
     }
 
     @Test fun countryPhone() {
@@ -61,9 +63,9 @@ class TelegramTest {
         )
     }
 
-    @Test fun playerCycles() {        assertEquals("all", nextRepeat("off"))
-        assertEquals("one", nextRepeat("all"))
-        assertEquals("off", nextRepeat("one"))
+    @Test fun playerCycles() {        assertEquals(RepeatMode.ALL, nextRepeat(RepeatMode.OFF))
+        assertEquals(RepeatMode.ONE, nextRepeat(RepeatMode.ALL))
+        assertEquals(RepeatMode.OFF, nextRepeat(RepeatMode.ONE))
         assertEquals(1.25f, nextSpeed(1f))
         assertEquals(2f, nextSpeed(1.5f))
         assertEquals(1f, nextSpeed(2f))
@@ -95,26 +97,26 @@ class TelegramTest {
     }
 
     @Test fun videoGestures() {
-        assertEquals(0L, com.nimbo.ui.telegram.seekTarget(5_000, 60_000, -10_000))
-        assertEquals(60_000L, com.nimbo.ui.telegram.seekTarget(55_000, 60_000, 10_000))
-        assertEquals(30_000L, com.nimbo.ui.telegram.seekTarget(20_000, 0, 10_000))
-        assertEquals(0.75f, com.nimbo.ui.telegram.dragLevel(0.5f, -250f, 1000f), 0.001f)
-        assertEquals(1f, com.nimbo.ui.telegram.dragLevel(0.9f, -500f, 1000f), 0.001f)
-        assertEquals(0f, com.nimbo.ui.telegram.dragLevel(0.1f, 500f, 1000f), 0.001f)
+        assertEquals(0L, com.nimbo.feature.video.seekTarget(5_000, 60_000, -10_000))
+        assertEquals(60_000L, com.nimbo.feature.video.seekTarget(55_000, 60_000, 10_000))
+        assertEquals(30_000L, com.nimbo.feature.video.seekTarget(20_000, 0, 10_000))
+        assertEquals(0.75f, com.nimbo.feature.video.dragLevel(0.5f, -250f, 1000f), 0.001f)
+        assertEquals(1f, com.nimbo.feature.video.dragLevel(0.9f, -500f, 1000f), 0.001f)
+        assertEquals(0f, com.nimbo.feature.video.dragLevel(0.1f, 500f, 1000f), 0.001f)
     }
 
     @Test fun subtitlePick() {
         val names = listOf("Movie.mp4", "movie.srt", "movie.es.srt", "other.srt", "movie.en.vtt", "notes.txt")
-        assertEquals("movie.es.srt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "es"))
-        assertEquals("movie.srt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "fr"))
-        assertEquals("movie.en.vtt", com.nimbo.ui.telegram.pickSubtitle("Movie.mp4", names, "en"))
-        assertEquals(null, com.nimbo.ui.telegram.pickSubtitle("clip.mp4", names, "es"))
+        assertEquals("movie.es.srt", com.nimbo.feature.video.pickSubtitle("Movie.mp4", names, "es"))
+        assertEquals("movie.srt", com.nimbo.feature.video.pickSubtitle("Movie.mp4", names, "fr"))
+        assertEquals("movie.en.vtt", com.nimbo.feature.video.pickSubtitle("Movie.mp4", names, "en"))
+        assertEquals(null, com.nimbo.feature.video.pickSubtitle("clip.mp4", names, "es"))
     }
 
     @Test fun progress() {
-        assertEquals(0.25f, com.nimbo.ui.telegram.progressFrac(10 * 60_000L, 40 * 60), 0.001f)
-        assertEquals(0f, com.nimbo.ui.telegram.progressFrac(60_000L, 120), 0.001f)       // corto
-        assertEquals(0f, com.nimbo.ui.telegram.progressFrac(40 * 60_000L - 5_000, 40 * 60), 0.001f) // terminado
-        assertEquals(0f, com.nimbo.ui.telegram.progressFrac(60_000L, 0), 0.001f)         // sin duración
+        assertEquals(0.25f, com.nimbo.player.progressFrac(10 * 60_000L, 40 * 60), 0.001f)
+        assertEquals(0f, com.nimbo.player.progressFrac(60_000L, 120), 0.001f)       // corto
+        assertEquals(0f, com.nimbo.player.progressFrac(40 * 60_000L - 5_000, 40 * 60), 0.001f) // terminado
+        assertEquals(0f, com.nimbo.player.progressFrac(60_000L, 0), 0.001f)         // sin duración
     }
 }

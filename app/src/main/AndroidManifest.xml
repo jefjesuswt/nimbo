@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".NimboApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:localeConfig="@xml/locales_config"
@@ -40,12 +41,12 @@
         </activity>
         <!-- Uploads Telegram en 2do plano (progreso + sobrevive bloqueo). -->
         <service
-            android:name=".ui.telegram.UploadService"
+            android:name=".data.transfer.UploadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
         <!-- Player en fondo + notificación (7d). -->
         <service
-            android:name=".ui.telegram.PlaybackService"
+            android:name=".player.PlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>

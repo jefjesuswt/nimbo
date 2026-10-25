@@ -1,6 +1,6 @@
 package com.nimbo
 
-import com.nimbo.ui.telegram.TgArt
+import com.nimbo.data.media.TgArt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -1,0 +1,55 @@
+[versions]
+agp = "9.4.1"
+kotlin = "2.4.21"
+ksp = "2.3.12"
+hilt = "2.60.1"
+androidx-hilt = "1.4.0"
+compose-bom = "2026.09.00"
+# Wavy oficial vive en M3 1.5 beta (no en 1.4): pin sobre el BOM.
+material3 = "1.5.0-beta01"
+core-ktx = "1.19.1"
+activity = "1.13.0"
+lifecycle = "2.11.0"
+navigation = "2.10.2"
+serialization = "1.12.0"
+coroutines = "1.8.1"
+documentfile = "1.0.1"
+media3 = "1.7.1"
+tdlib = "1.8.56"
+security-crypto = "1.1.0-alpha06"
+mlkit-translate = "17.0.3"
+mlkit-langid = "17.0.6"
+junit = "4.13.2"
+
+[libraries]
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
+compose-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
+hilt-viewmodel-compose = { module = "androidx.hilt:hilt-lifecycle-viewmodel-compose", version.ref = "androidx-hilt" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
+media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
+tdlib = { module = "com.github.tdlibx:td", version.ref = "tdlib" }
+security-crypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
+mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "mlkit-translate" }
+mlkit-langid = { module = "com.google.mlkit:language-id", version.ref = "mlkit-langid" }
+junit = { module = "junit:junit", version.ref = "junit" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
