@@ -24,6 +24,10 @@ Grab the latest APK from [Releases](https://github.com/jefjesuswt/nimbo/releases
 
 ## Setup
 
+> **📖 Step-by-step tutorial: [Getting your Telegram API keys and signing in](docs/telegram-api-keys.md)**
+> ([en español](docs/telegram-api-keys.es.md)). Start here if it's your first time:
+> it covers my.telegram.org, the two codes Telegram sends you and the usual "ERROR" fix.
+
 1. Create an `api_id` / `api_hash` at <https://my.telegram.org> → API development tools.
 2. Open Nimbo, paste them (stored encrypted on the phone only), sign in with your number.
 

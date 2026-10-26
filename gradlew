@@ -9,10 +9,9 @@ VER=$(echo "$WANT" | sed 's/gradle-//; s/-bin//')
 GRADLE_BIN=$(find "$HOME/.gradle/wrapper/dists/${WANT}" /tmp/gradle-dist -path "*/gradle-${VER}/bin/gradle" -type f 2>/dev/null | head -1)
 if [ -z "$GRADLE_BIN" ]; then
   echo "Descargando Gradle $VER..." >&2
-  mkdir -p /tmp/gradle-dist && cd /tmp/gradle-dist || exit 1
-  curl -sL -o gradle.zip "https://services.gradle.org/distributions/gradle-${VER}-bin.zip" && unzip -q -o gradle.zip
+  (mkdir -p /tmp/gradle-dist && cd /tmp/gradle-dist &&
+    curl -sL -o gradle.zip "https://services.gradle.org/distributions/gradle-${VER}-bin.zip" && unzip -q -o gradle.zip) || exit 1
   GRADLE_BIN="/tmp/gradle-dist/gradle-${VER}/bin/gradle"
 fi
 if [ ! -x "$GRADLE_BIN" ]; then echo "Sin Gradle usable" >&2; exit 1; fi
-cd - > /dev/null || exit 1
 exec "$GRADLE_BIN" "$@"

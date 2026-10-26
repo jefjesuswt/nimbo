@@ -27,6 +27,10 @@ cambios están en [CHANGELOG.md](CHANGELOG.md) (en inglés).
 
 ## Configuración
 
+> **📖 Tutorial paso a paso: [Cómo sacar tus claves de la API de Telegram e iniciar sesión](docs/telegram-api-keys.es.md)**
+> ([in English](docs/telegram-api-keys.md)). Empieza aquí si es tu primera vez:
+> explica my.telegram.org, los dos códigos que manda Telegram y cómo resolver el típico "ERROR".
+
 1. Crea un `api_id` / `api_hash` en <https://my.telegram.org> → API development tools.
 2. Abre Nimbo, pégalos (se guardan cifrados solo en el teléfono) e inicia sesión
    con tu número.

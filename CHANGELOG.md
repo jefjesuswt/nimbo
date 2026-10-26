@@ -6,6 +6,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-26
+
 ### Added
 - README and Telegram API keys guide in English and Spanish, and a Limits section (2 GB per file, caption length, inactive accounts…).
 
@@ -63,5 +65,6 @@ First public release.
 - Your `api_id` / `api_hash` are typed in the app and stored encrypted on the phone only; Nimbo ships no keys.
 - The Telegram session database is encrypted and excluded from backups.
 
-[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/jefjesuswt/nimbo/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/jefjesuswt/nimbo/releases/tag/v1.0.0
