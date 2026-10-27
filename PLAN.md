@@ -56,4 +56,5 @@
 - [x] 13b Abrir troceados no-vídeo en el visor (PlainFiles los une en caché)
 - [x] 12 Cifrado antes de subir: formato por bloques, clave con contraseña en la nube, subir/listar/streaming/abrir/descargar, ajustes
 - [ ] 12 verificar en celu: configurar, subir cifrado (vídeo, audio, foto, texto, > 2 GB), seek, bloquear/desbloquear, otro teléfono, contraseña errónea
-- [ ] 12b Cambiar contraseña · [ ] 12c cifrar lo ya subido · [ ] 12d miniaturas cifradas
+- [ ] 12b Cambiar contraseña · [x] 12c cifrar lo ya subido · [ ] 12d miniaturas cifradas
+- [ ] 12c verificar en celu: cifrar carpeta mixta (audio con título editado, foto, troceado), cancelar a mitad, bloquear a mitad

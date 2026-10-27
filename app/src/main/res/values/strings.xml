@@ -158,6 +158,12 @@
     <string name="enc_failed">Couldn\'t save the key. Try again</string>
     <string name="enc_locked">Locked</string>
     <string name="enc_locked_hint">Encrypted file: unlock it in More › Encryption</string>
+    <string name="enc_existing">Encrypt existing files</string>
+    <string name="enc_existing_sub">Not encrypted yet: %1$d</string>
+    <string name="enc_existing_running">Encrypting… follow it or cancel it in the transfer card</string>
+    <string name="enc_existing_confirm">Each file is downloaded, encrypted and uploaded again. The original is deleted only once the encrypted copy is in your list. It uses data (about twice their size) and the files move to the top by date. Telegram may keep copies of the originals on its servers.</string>
+    <string name="enc_existing_action">Encrypt</string>
+    <string name="enc_migrating">Encrypting %1$d/%2$d</string>
     <string name="filter_show">Show</string>
     <string name="filter_all">All</string>
     <string name="filter_media">Media</string>

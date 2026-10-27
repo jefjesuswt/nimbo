@@ -157,6 +157,12 @@
     <string name="enc_failed">Não foi possível salvar a chave. Tente de novo</string>
     <string name="enc_locked">Bloqueado</string>
     <string name="enc_locked_hint">Arquivo criptografado: desbloqueie em Mais › Criptografia</string>
+    <string name="enc_existing">Criptografar arquivos já enviados</string>
+    <string name="enc_existing_sub">Ainda sem criptografia: %1$d</string>
+    <string name="enc_existing_running">Criptografando… acompanhe ou cancele no cartão de transferências</string>
+    <string name="enc_existing_confirm">Cada arquivo é baixado, criptografado e enviado de novo. O original só é apagado quando a cópia criptografada já está na sua lista. Usa dados (cerca do dobro do tamanho) e os arquivos sobem ao ordenar por data. O Telegram pode manter cópias dos originais nos servidores dele.</string>
+    <string name="enc_existing_action">Criptografar</string>
+    <string name="enc_migrating">Criptografando %1$d/%2$d</string>
     <string name="filter_show">Mostrar</string>
     <string name="filter_all">Tudo</string>
     <string name="filter_media">Mídia</string>

@@ -8,7 +8,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Optional encryption (More › Encryption). Set a password and new uploads are encrypted on the phone before they reach Telegram: names, sizes, audio titles and content are hidden, only the folder stays visible. Nimbo shows them as normal files, streams encrypted videos with normal seeking and opens or downloads the rest. The key is stored in your Saved Messages wrapped with your password, so another phone can unlock it. If you forget the password, encrypted files cannot be recovered.
+- More › Encryption › Encrypt existing files: re-uploads files that are not encrypted yet, one at a time, and deletes each original only once its encrypted copy is in the list.
 - Split files that are not videos (archives, disk images…) now open from the list too.
+
+### Fixed
+- Joined files bigger than 2 GB were deleted from the cache right after being joined, so they did not open.
 
 ## [1.2.0] - 2026-10-27
 

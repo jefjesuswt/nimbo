@@ -252,6 +252,7 @@ private fun EncryptionGroup(vm: SettingsViewModel) {
                     sub = stringResource(R.string.enc_uploads_sub),
                     trailing = { Switch(vm.encryptUploads, vm::encryptUploads) }
                 )
+                EncryptExistingRow(vm)
                 PrefRow(
                     icon = Icons.Filled.LockOpen, title = stringResource(R.string.enc_lock),
                     sub = stringResource(R.string.enc_lock_sub),
@@ -261,6 +262,26 @@ private fun EncryptionGroup(vm: SettingsViewModel) {
         }
     }
     vm.encDialog?.let { PasswordDialog(vm, it) }
+}
+
+// Solo si queda algo en claro (o ya está en marcha).
+@Composable
+private fun EncryptExistingRow(vm: SettingsViewModel) {
+    val count by vm.plainCount.collectAsStateWithLifecycle()
+    val running by vm.encrypting.collectAsStateWithLifecycle()
+    if (count == 0 && !running) return
+    PrefRow(
+        icon = Icons.Filled.Lock, title = stringResource(R.string.enc_existing),
+        sub = if (running) stringResource(R.string.enc_existing_running) else stringResource(R.string.enc_existing_sub, count),
+        onClick = { if (!running) vm.encConfirm = true }
+    )
+    if (vm.encConfirm) AlertDialog(
+        onDismissRequest = { vm.encConfirm = false },
+        title = { Text(stringResource(R.string.enc_existing)) },
+        text = { Text(stringResource(R.string.enc_existing_confirm)) },
+        confirmButton = { TextButton(onClick = vm::encryptExisting) { Text(stringResource(R.string.enc_existing_action)) } },
+        dismissButton = { TextButton(onClick = { vm.encConfirm = false }) { Text(stringResource(R.string.cancel)) } }
+    )
 }
 
 @Composable

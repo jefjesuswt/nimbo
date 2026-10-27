@@ -13,15 +13,21 @@ import com.nimbo.core.tdlib.ApiKeys
 import com.nimbo.core.tdlib.TgAuthState
 import com.nimbo.core.tdlib.parseApiId
 import com.nimbo.data.auth.AuthRepository
+import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.crypto.EncState
 import com.nimbo.data.crypto.Encryption
 import com.nimbo.data.crypto.SetupResult
+import com.nimbo.data.transfer.TransferManager
+import com.nimbo.data.transfer.toEncrypt
 import com.nimbo.data.translate.Translator
 import com.nimbo.data.translate.TranslatorRegistry
 import com.nimbo.ui.theme.Seed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 fun themeModeLabel(mode: ThemeMode): Int = when (mode) {
@@ -38,7 +44,9 @@ class SettingsViewModel @Inject constructor(
     private val prefs: AppPrefs,
     private val translators: TranslatorRegistry,
     private val auth: AuthRepository,
-    private val encryption: Encryption
+    private val encryption: Encryption,
+    repo: CloudRepository,
+    private val transfers: TransferManager
 ) : ViewModel() {
     val appearance: StateFlow<Appearance> = prefs.appearance
     fun setTheme(m: ThemeMode) = prefs.setTheme(m)
@@ -125,6 +133,17 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun lockEnc() = encryption.lock()
+
+    // Cifrar lo ya subido (12c): cuántos quedan en claro + confirmación.
+    val plainCount: StateFlow<Int> = repo.files.map { toEncrypt(it).size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val encrypting: StateFlow<Boolean> = transfers.encrypting
+    var encConfirm by mutableStateOf(false)
+
+    fun encryptExisting() {
+        encConfirm = false
+        transfers.encryptExisting()
+    }
 
     private companion object {
         const val MIN_PASSWORD = 8

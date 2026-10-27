@@ -43,10 +43,20 @@ que se guarda. Opción para que solo el usuario pueda abrir sus archivos.
 - El índice local guarda los cifrados opacos: los nombres reales solo
   viven en memoria.
 
+## Cifrar lo ya subido (12c, implementado)
+
+- More › Cifrado › "Cifrar archivos ya subidos" (solo si queda algo en
+  claro), con confirmación. De a uno: bajar en claro (`PlainFiles`), subir
+  cifrado (conserva carpeta, nombre y `#tgmeta`, también títulos editados),
+  y borrar el original solo cuando la copia cifrada sale en la lista con el
+  mismo nombre y tamaño. Si algo falla, el original se queda.
+- Card por archivo ("Cifrando 3/40"): cancelarla para todo.
+- Quedan en claro: covers generadas (`#tggen`) y las copias que Telegram
+  conserve en sus servidores. Los re-subidos cambian de fecha.
+
 ## Pendiente
 
 - Cambiar contraseña (re-envolver y editar el `#tgkey`).
-- Cifrar lo ya subido (bajar, cifrar, resubir, borrar original tras verificar).
 - Miniaturas cifradas.
 
 ## Riesgos

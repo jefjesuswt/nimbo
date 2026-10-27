@@ -23,6 +23,7 @@ import com.nimbo.data.cloud.PartLimitPremium
 import com.nimbo.data.cloud.PartTag
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgGenTag
+import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.TgTransTag
 import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.isAudioName
@@ -49,6 +50,7 @@ import com.nimbo.data.crypto.sealInfo
 import com.nimbo.data.crypto.skipFully
 import com.nimbo.core.prefs.AppPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
@@ -65,6 +67,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -81,6 +84,7 @@ sealed interface BatchLabel {
     data class Name(val text: String) : BatchLabel
     data class Files(val count: Int) : BatchLabel
     data object Root : BatchLabel
+    data class Encrypting(val n: Int, val total: Int) : BatchLabel
 }
 
 enum class ItemState { PENDING, RUNNING, DONE, FAILED }
@@ -111,7 +115,9 @@ data class UpJob(
     // Parte de un archivo troceado (spec 13): bytes [offset, offset+size).
     val part: PartTag? = null, val offset: Long = 0,
     // Cifrado (spec 12): offset/size en bytes cifrados.
-    val enc: EncJob? = null
+    val enc: EncJob? = null,
+    // #tgmeta ya conocido (cifrar lo subido: conserva títulos editados).
+    val meta: String? = null
 )
 
 class EncJob(val key: ByteArray, val header: ByteArray, val plainSize: Long, val info: String)
@@ -262,6 +268,83 @@ class TransferManager @Inject constructor(
         }
     }
 
+    // Cifrar lo ya subido (spec 12c), de a uno: bajar en claro, subir cifrado
+    // y borrar el original solo cuando la copia cifrada ya sale en la lista
+    // con su nombre y tamaño. Cancelar la card para todo; lo que falte sigue
+    // en claro. ponytail: las covers generadas (#tggen) se quedan en claro.
+    private val _encrypting = MutableStateFlow(false)
+    val encrypting: StateFlow<Boolean> = _encrypting
+
+    fun encryptExisting() {
+        if (keys.key.value == null || !_encrypting.compareAndSet(false, true)) return
+        scope.launch(io) {
+            try {
+                val todo = toEncrypt(repo.files.value)
+                val failed = mutableListOf<String>()
+                todo.forEachIndexed { i, f ->
+                    // Bloqueado a mitad: no hay con qué cifrar.
+                    val ok = keys.key.value != null && encryptOne(f, BatchLabel.Encrypting(i + 1, todo.size))
+                    if (!ok) failed.add(f.name)
+                }
+                if (failed.isNotEmpty()) _failed.value = failed
+            } finally {
+                _encrypting.value = false
+            }
+        }
+    }
+
+    private suspend fun encryptOne(f: TgFile, label: BatchLabel): Boolean {
+        val path = fetchPlain(f, label) ?: return false
+        val file = File(path)
+        try {
+            if (file.length() != f.sizeBytes) return false
+            val meta = when {
+                f.kind != TgKind.AUDIO -> ""
+                f.title.isEmpty() && f.artist.isEmpty() && f.durSec <= 0 -> null
+                else -> tagMeta("", f.title, f.artist, f.durSec)
+            }
+            val job = UpJob(Uri.fromFile(file), f.folder, f.name, f.sizeBytes, meta = meta)
+            if (!runBatch(label, listOf(job), forceEnc = true)) return false
+            // El refresh del lote es asíncrono: se reintenta un par de veces.
+            repeat(3) {
+                repo.reload()
+                val there = repo.files.value.any {
+                    it.encrypted() && !it.locked && it.folder == f.folder && it.name == f.name && it.sizeBytes == f.sizeBytes
+                }
+                if (there) return repo.deleteMessages(f.messageIds())
+                delay(2_000)
+            }
+            return false
+        } finally {
+            // Copia en claro fuera del teléfono: la de TDLib o la unida.
+            withContext(NonCancellable) { if (f.isSplit()) file.delete() else client.send(TdApi.DeleteFile(f.fileId)) }
+        }
+    }
+
+    // Bajada con card propia (el lote de subida aún no existe).
+    private suspend fun fetchPlain(f: TgFile, label: BatchLabel): String? {
+        val id = ids.incrementAndGet()
+        _batches.update {
+            it + BatchUi(
+                id, label, f.sizeBytes.coerceAtLeast(1L), 0, f.name, 0, 1, true, down = true,
+                items = listOf(BatchItem(f.name, f.sizeBytes, ItemState.RUNNING)), startMs = System.currentTimeMillis()
+            )
+        }
+        coroutineContext[Job]?.let { batchJobs[id] = it }
+        UploadService.ensure(ctx)
+        return try {
+            plain.path(f) { p ->
+                updBatch(id) { it.copy(done = (p * f.sizeBytes).toLong(), currentFrac = p) }
+                UploadService.progress(ctx, label, p, f.name, down = true)
+            }
+        } finally {
+            batchJobs.remove(id)
+            cancelFlags.remove(id)
+            dropBatch(id)
+            if (_batches.value.none { it.running }) UploadService.finish(ctx)
+        }
+    }
+
     private fun jobOf(uri: Uri, folder: String, cover: Boolean): UpJob? {
         val (name, size) = ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
             val iName = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -356,7 +439,7 @@ class TransferManager @Inject constructor(
         val key = keys.key.value ?: return null
         return jobs.filterNot { it.cover && it.data != null }.map { j ->
             val header = newHeader()
-            val meta = if (j.data != null) "" else
+            val meta = j.meta ?: if (j.data != null) "" else
                 audioMeta(j.name) { it.setDataSource(ctx, j.uri) }?.let { (t, a, d) -> tagMeta("", t, a, d) }.orEmpty()
             j.copy(
                 name = UUID.randomUUID().toString().take(12) + ".nimbo",
@@ -383,14 +466,14 @@ class TransferManager @Inject constructor(
     }
 
     // subdir único (colisiones fuera, nombre intacto).
-    private fun stageFor(name: String): java.io.File {
+    private fun stageFor(name: String): File {
         val safe = name.replace('/', '_').takeLast(120).ifEmpty { "file" }
-        val dir = java.io.File(java.io.File(ctx.cacheDir, "tg-upload"), ids.incrementAndGet().toString() + "-" + System.nanoTime())
+        val dir = File(File(ctx.cacheDir, "tg-upload"), ids.incrementAndGet().toString() + "-" + System.nanoTime())
             .apply { mkdirs() }
-        return java.io.File(dir, safe)
+        return File(dir, safe)
     }
 
-    private fun stageJob(job: UpJob): java.io.File? {
+    private fun stageJob(job: UpJob): File? {
         val stage = stageFor(job.name)
         return try {
             // Bytes directos (cover embebida, traducción guardada): a staging
@@ -598,6 +681,10 @@ class TransferManager @Inject constructor(
         const val TAG = "Transfers"
     }
 }
+
+// Lo que sigue en claro y se puede cifrar (entero, con contenido).
+fun toEncrypt(files: List<TgFile>): List<TgFile> =
+    files.filter { !it.encrypted() && !it.incomplete() && it.fileId != 0 }
 
 // Copia [offset, offset+len) del stream.
 // ponytail: en SAF las partes altas leen y tiran lo previo; FileChannel

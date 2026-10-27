@@ -157,6 +157,12 @@
     <string name="enc_failed">キーを保存できませんでした。もう一度お試しください</string>
     <string name="enc_locked">ロック中</string>
     <string name="enc_locked_hint">暗号化ファイル：その他 › 暗号化 でロック解除してください</string>
+    <string name="enc_existing">既存のファイルを暗号化</string>
+    <string name="enc_existing_sub">未暗号化: %1$d</string>
+    <string name="enc_existing_running">暗号化中… 転送カードで確認・キャンセルできます</string>
+    <string name="enc_existing_confirm">各ファイルをダウンロードして暗号化し、再アップロードします。元のファイルは暗号化したコピーが一覧に表示されてから削除されます。データ通信量はサイズの約 2 倍で、日付順では先頭に移動します。Telegram のサーバーに元のファイルのコピーが残る場合があります。</string>
+    <string name="enc_existing_action">暗号化</string>
+    <string name="enc_migrating">暗号化中 %1$d/%2$d</string>
     <string name="filter_show">表示</string>
     <string name="filter_all">すべて</string>
     <string name="filter_media">メディア</string>

@@ -157,6 +157,12 @@
     <string name="enc_failed">No se pudo guardar la clave. Inténtalo de nuevo</string>
     <string name="enc_locked">Bloqueado</string>
     <string name="enc_locked_hint">Archivo cifrado: desbloquéalo en Más › Cifrado</string>
+    <string name="enc_existing">Cifrar archivos ya subidos</string>
+    <string name="enc_existing_sub">Sin cifrar todavía: %1$d</string>
+    <string name="enc_existing_running">Cifrando… síguelo o cancélalo en la tarjeta de transferencias</string>
+    <string name="enc_existing_confirm">Cada archivo se descarga, se cifra y se vuelve a subir. El original se borra solo cuando la copia cifrada ya está en tu lista. Usa datos (cerca del doble de su tamaño) y los archivos pasan arriba al ordenar por fecha. Telegram puede conservar copias de los originales en sus servidores.</string>
+    <string name="enc_existing_action">Cifrar</string>
+    <string name="enc_migrating">Cifrando %1$d/%2$d</string>
     <string name="filter_show">Mostrar</string>
     <string name="filter_all">Todo</string>
     <string name="filter_media">Multimedia</string>

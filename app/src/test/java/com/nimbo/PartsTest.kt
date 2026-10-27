@@ -1,5 +1,6 @@
 package com.nimbo
 
+import com.nimbo.core.util.trimCache
 import com.nimbo.data.cloud.PartTag
 import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.TgPart
@@ -18,6 +19,8 @@ import com.nimbo.data.transfer.copyRange
 import com.nimbo.fakes.docMessage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
+import kotlin.io.path.createTempDirectory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -88,5 +91,17 @@ class PartsTest {
         assertEquals(1 to 0L, partAt(4, sizes))
         assertEquals(2 to 1L, partAt(9, sizes))
         assertEquals(3 to 0L, partAt(10, sizes))
+    }
+
+    // Una parte unida > tope de la caché no se borra recién escrita.
+    @Test
+    fun trimKeepsNewest() {
+        val dir = createTempDirectory().toFile()
+        val old = File(dir, "old").apply { writeBytes(ByteArray(10)); setLastModified(1_000) }
+        val big = File(dir, "big").apply { writeBytes(ByteArray(30)); setLastModified(2_000) }
+        trimCache(dir, 20)
+        assertFalse(old.exists())
+        assertTrue(big.exists())
+        dir.deleteRecursively()
     }
 }
