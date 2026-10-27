@@ -52,8 +52,10 @@ class CloudOps @Inject constructor(
         var n = 0
         files.forEach { f ->
             val ok = runCatching {
-                val cap = currentCaption(f.messageId) ?: return@runCatching false
-                setCaption(f.messageId, tagFolder(cap, target)).also { delay(400) }
+                f.messageIds().all { id ->
+                    val cap = currentCaption(id) ?: return@runCatching false
+                    setCaption(id, tagFolder(cap, target)).also { delay(400) }
+                }
             }.getOrDefault(false)
             if (ok) n++ else Log.w(TAG, "MOVE-SKIP ${f.messageId}")
         }
@@ -62,9 +64,9 @@ class CloudOps @Inject constructor(
     }
 
     // Id remoto persistente: del row o en vivo (el índice offline no lo guarda).
-    private suspend fun remoteIdOf(f: TgFile): String {
-        if (f.remoteId.isNotEmpty()) return f.remoteId
-        return when (val c = repo.message(f.messageId)?.content) {
+    private suspend fun remoteIdOf(f: TgFile, messageId: Long): String {
+        if (f.remoteId.isNotEmpty() && messageId == f.messageId) return f.remoteId
+        return when (val c = repo.message(messageId)?.content) {
             is TdApi.MessageAudio -> c.audio.audio.remote?.id.orEmpty()
             is TdApi.MessageDocument -> c.document.document.remote?.id.orEmpty()
             is TdApi.MessagePhoto -> c.photo.sizes.maxByOrNull { it.width * it.height }?.photo?.remote?.id.orEmpty()
@@ -80,18 +82,22 @@ class CloudOps @Inject constructor(
         var n = 0
         files.forEach { f ->
             val ok = runCatching {
-                val rid = remoteIdOf(f)
-                if (rid.isEmpty()) return@runCatching false
-                val cap = currentCaption(f.messageId) ?: tagFolder("", f.folder)
-                val caption = TdApi.FormattedText(tagFolder(cap, target), emptyArray())
-                val remote = TdApi.InputFileRemote(rid)
-                val content = when (f.kind) {
-                    TgKind.AUDIO -> TdApi.InputMessageAudio(remote, null, 0, "", "", caption)
-                    TgKind.VIDEO -> TdApi.InputMessageVideo(remote, null, null, 0, IntArray(0), 0, 0, 0, false, caption, false, null, false)
-                    TgKind.IMAGE -> TdApi.InputMessagePhoto(remote, null, IntArray(0), 0, 0, caption, false, null, false)
-                    else -> TdApi.InputMessageDocument(remote, null, true, caption)
+                // Partes: cada una como documento (conserva #part y grupo).
+                f.messageIds().all { id ->
+                    val rid = remoteIdOf(f, id)
+                    if (rid.isEmpty()) return@runCatching false
+                    val cap = currentCaption(id) ?: tagFolder("", f.folder)
+                    val caption = TdApi.FormattedText(tagFolder(cap, target), emptyArray())
+                    val remote = TdApi.InputFileRemote(rid)
+                    val content = when {
+                        f.isSplit() -> TdApi.InputMessageDocument(remote, null, true, caption)
+                        f.kind == TgKind.AUDIO -> TdApi.InputMessageAudio(remote, null, 0, "", "", caption)
+                        f.kind == TgKind.VIDEO -> TdApi.InputMessageVideo(remote, null, null, 0, IntArray(0), 0, 0, 0, false, caption, false, null, false)
+                        f.kind == TgKind.IMAGE -> TdApi.InputMessagePhoto(remote, null, IntArray(0), 0, 0, caption, false, null, false)
+                        else -> TdApi.InputMessageDocument(remote, null, true, caption)
+                    }
+                    client.ok(TdApi.SendMessage(repo.chat(), null, null, null, null, content)).also { delay(600) }
                 }
-                client.ok(TdApi.SendMessage(repo.chat(), null, null, null, null, content)).also { delay(600) }
             }.getOrDefault(false)
             if (ok) n++ else Log.w(TAG, "COPY-SKIP ${f.messageId}")
         }
@@ -100,7 +106,7 @@ class CloudOps @Inject constructor(
     }
 
     suspend fun delete(f: TgFile): Boolean = detached {
-        runCatching { repo.deleteMessages(listOf(f.messageId)) }.getOrDefault(false)
+        runCatching { repo.deleteMessages(f.messageIds()) }.getOrDefault(false)
     }
 
     // Rename/move carpeta: reescribe tag (subpaths intactos) + refresh.
@@ -112,8 +118,10 @@ class CloudOps @Inject constructor(
         }
         val ok = runCatching {
             repo.inDir(old).forEach { f ->
-                val cap = currentCaption(f.messageId) ?: return@forEach
-                if (!setCaption(f.messageId, tagFolder(cap, dest(f.folder)))) error("caption")
+                f.messageIds().forEach { id ->
+                    val cap = currentCaption(id) ?: return@forEach
+                    if (!setCaption(id, tagFolder(cap, dest(f.folder)))) error("caption")
+                }
             }
             // Covers linkeadas mudan también (si no, el art se pierde).
             // Retag de carpeta: conserva #tgcover/#tggen/#tgname.
@@ -151,7 +159,7 @@ class CloudOps @Inject constructor(
     }
 
     suspend fun deleteFolder(dir: String): Boolean = detached {
-        val ids = repo.inDir(dir).map { it.messageId } +
+        val ids = repo.inDir(dir).flatMap { it.messageIds() } +
             repo.coversUnder(dir).map { it.second } + repo.keepsUnder(dir).map { it.second }
         runCatching { repo.deleteMessages(ids) }.getOrDefault(false)
     }

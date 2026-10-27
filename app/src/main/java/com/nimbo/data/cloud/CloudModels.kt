@@ -30,7 +30,11 @@ data class TgFile(
     // Hash SHA-256 del picture (dedupe: un álbum = un jpg).
     val coverHash: String = "",
     // Id remoto persistente (para copiar sin re-subir).
-    val remoteId: String = ""
+    val remoteId: String = "",
+    // Troceo (spec 13): partes presentes en orden; vacío = archivo normal.
+    val parts: List<TgPart> = emptyList(),
+    val partCount: Int = 0,
+    val partGroup: String = ""
 ) {
     // Igualdad por todos los campos (ByteArray por contenido). Antes solo
     // ids+nombre: renombrar el título o deducir la cover daba una lista
@@ -42,10 +46,20 @@ data class TgFile(
             dur == other.dur && durSec == other.durSec && title == other.title &&
             artist == other.artist && thumbFileId == other.thumbFileId &&
             thumbMini.contentEquals(other.thumbMini) && coverHash == other.coverHash &&
-            remoteId == other.remoteId
+            remoteId == other.remoteId && parts == other.parts && partCount == other.partCount &&
+            partGroup == other.partGroup
 
     override fun hashCode(): Int = 31 * id.hashCode() + messageId.hashCode()
 }
+
+data class TgPart(val index: Int, val messageId: Long, val fileId: Int, val size: Long)
+
+fun TgFile.isSplit(): Boolean = partCount > 0
+
+fun TgFile.incomplete(): Boolean = parts.size < partCount
+
+// Mensajes que forman el archivo (borrar/mover actúan sobre todos).
+fun TgFile.messageIds(): List<Long> = if (parts.isEmpty()) listOf(messageId) else parts.map { it.messageId }
 
 fun TgFile.showTitle(): String = title.ifEmpty { name }
 

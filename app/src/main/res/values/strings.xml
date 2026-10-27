@@ -135,6 +135,8 @@
     <string name="streaming_name">Streaming %1$s</string>
     <string name="tg_not_found">Telegram app not found</string>
     <string name="couldnt_open">Couldn\'t open %1$s</string>
+    <string name="incomplete">Incomplete</string>
+    <string name="split_download_hint">%1$s is split in parts: download it to open it</string>
     <string name="filter_show">Show</string>
     <string name="filter_all">All</string>
     <string name="filter_media">Media</string>

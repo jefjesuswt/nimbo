@@ -9,6 +9,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import com.nimbo.core.tdlib.TdClient
+import com.nimbo.data.cloud.partAt
 import java.io.IOException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -89,11 +90,70 @@ class TgStreamSource(private val client: TdClient) : DataSource {
     }
 }
 
+// Archivo troceado (spec 13): `tg://parts?f=<fileId>:<bytes>,…`. Un solo
+// stream para ExoPlayer: el offset global elige la parte (partAt) y al
+// acabar una sigue con la siguiente, así el seek vale en cualquier punto.
+class ConcatTgSource(private val client: TdClient) : DataSource {
+    private var uri: Uri? = null
+    private var ids = emptyList<Int>()
+    private var sizes = emptyList<Long>()
+    private var idx = 0
+    private var cur: TgStreamSource? = null
+    private var left = 0L
+
+    override fun open(dataSpec: DataSpec): Long {
+        uri = dataSpec.uri
+        val ps = runCatching {
+            dataSpec.uri.getQueryParameter("f")!!.split(',').map { p -> p.split(':').let { it[0].toInt() to it[1].toLong() } }
+        }.getOrNull() ?: throw IOException("bad uri")
+        ids = ps.map { it.first }
+        sizes = ps.map { it.second }
+        val (i, off) = partAt(dataSpec.position, sizes)
+        openPart(i, off)
+        val avail = (sizes.sum() - dataSpec.position).coerceAtLeast(0L)
+        left = if (dataSpec.length != C.LENGTH_UNSET.toLong()) minOf(dataSpec.length, avail) else avail
+        return left
+    }
+
+    private fun openPart(i: Int, off: Long) {
+        cur?.close()
+        idx = i
+        cur = if (i >= ids.size) null else TgStreamSource(client).also {
+            it.open(DataSpec.Builder().setUri(Uri.parse("tg://file/${ids[i]}?total=${sizes[i]}")).setPosition(off).build())
+        }
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
+        while (left > 0) {
+            val s = cur ?: break
+            val n = s.read(buffer, offset, minOf(length.toLong(), left).toInt())
+            if (n != C.RESULT_END_OF_INPUT) {
+                left -= n
+                return n
+            }
+            openPart(idx + 1, 0)
+        }
+        return C.RESULT_END_OF_INPUT
+    }
+
+    override fun addTransferListener(transferListener: TransferListener) {}
+    override fun getUri(): Uri? = uri
+    override fun close() {
+        cur?.close()
+        cur = null
+    }
+}
+
 // tg:// → streaming TDLib; el resto (archivo local, subtítulos) → normal.
 class TgOrLocalSource(private val local: DataSource, private val client: TdClient) : DataSource {
     private var cur: DataSource? = null
     override fun open(dataSpec: DataSpec): Long {
-        val s = if (dataSpec.uri.scheme == "tg") TgStreamSource(client) else local
+        val s = when {
+            dataSpec.uri.scheme != "tg" -> local
+            dataSpec.uri.host == "parts" -> ConcatTgSource(client)
+            else -> TgStreamSource(client)
+        }
         cur = s
         return s.open(dataSpec)
     }

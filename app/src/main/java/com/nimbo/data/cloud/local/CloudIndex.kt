@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.TgPart
 import com.nimbo.data.cloud.tgMeta
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -16,7 +17,7 @@ import javax.inject.Singleton
 // Llamar fuera del hilo principal (SQLite bloquea).
 @Singleton
 class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
-    SQLiteOpenHelper(ctx.applicationContext, "tg_index", null, 5), CloudStore {
+    SQLiteOpenHelper(ctx.applicationContext, "tg_index", null, 6), CloudStore {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -24,7 +25,7 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
                 "message_id INTEGER PRIMARY KEY, file_id INTEGER, name TEXT, " +
                 "kind TEXT, size INTEGER, date INTEGER, folder TEXT, " +
                 "title TEXT, artist TEXT, thumb_file INTEGER, cover_hash TEXT, " +
-                "dur_sec INTEGER)"
+                "dur_sec INTEGER, parts TEXT, part_count INTEGER)"
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_folder ON tg_files(folder)")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_name ON tg_files(name)")
@@ -77,6 +78,8 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
                     put("thumb_file", f.thumbFileId)
                     put("cover_hash", f.coverHash)
                     put("dur_sec", f.durSec)
+                    put("parts", f.parts.joinToString(",") { "${it.index}:${it.messageId}:${it.fileId}:${it.size}" })
+                    put("part_count", f.partCount)
                 }
                 db.replace("tg_files", null, v)
             }
@@ -103,6 +106,8 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
             val iTh = c.getColumnIndexOrThrow("thumb_file")
             val iCh = c.getColumnIndexOrThrow("cover_hash")
             val iDu = c.getColumnIndexOrThrow("dur_sec")
+            val iP = c.getColumnIndexOrThrow("parts")
+            val iPc = c.getColumnIndexOrThrow("part_count")
             while (c.moveToNext()) {
                 val kind = runCatching { TgKind.valueOf(c.getString(iK)) }
                     .getOrDefault(TgKind.DOC)
@@ -121,7 +126,9 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
                         artist = c.getString(iA) ?: "",
                         thumbFileId = c.getInt(iTh),
                         coverHash = c.getString(iCh) ?: "",
-                        durSec = c.getInt(iDu)
+                        durSec = c.getInt(iDu),
+                        parts = parseParts(c.getString(iP).orEmpty()),
+                        partCount = c.getInt(iPc)
                     )
                 )
             }
@@ -158,4 +165,11 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
         writableDatabase.delete("tg_files", null, null)
         writableDatabase.delete("positions", null, null)
     }
+}
+
+// "índice:msg:file:tamaño,…" (columna parts).
+private fun parseParts(s: String): List<TgPart> = s.split(',').mapNotNull { p ->
+    val v = p.split(':')
+    if (v.size != 4) null
+    else TgPart(v[0].toIntOrNull() ?: return@mapNotNull null, v[1].toLongOrNull() ?: 0, v[2].toIntOrNull() ?: 0, v[3].toLongOrNull() ?: 0)
 }

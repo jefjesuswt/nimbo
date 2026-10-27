@@ -134,6 +134,8 @@
     <string name="streaming_name">Lecture de %1$s</string>
     <string name="tg_not_found">Application Telegram introuvable</string>
     <string name="couldnt_open">Impossible d\'ouvrir %1$s</string>
+    <string name="incomplete">Incomplet</string>
+    <string name="split_download_hint">%1$s est en plusieurs parties : téléchargez-le pour l\'ouvrir</string>
     <string name="filter_show">Afficher</string>
     <string name="filter_all">Tout</string>
     <string name="filter_media">Médias</string>

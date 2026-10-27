@@ -26,6 +26,8 @@ import com.nimbo.core.tdlib.TgAuthState
 import com.nimbo.data.cloud.PlaybackPositions
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.incomplete
+import com.nimbo.data.cloud.isSplit
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.data.media.CoverRepository
 import com.nimbo.data.transfer.FileFetcher
@@ -101,7 +103,7 @@ class PlayerController @Inject constructor(
     val hasSubtitles: StateFlow<Boolean> = _hasSubtitles
 
     // Descarga en curso del vídeo en streaming: se corta al cambiar o parar.
-    private var streamingId = 0
+    private var streamingIds = emptyList<Int>()
 
     init {
         // Cerrar sesión: nada de la cuenta anterior sigue sonando.
@@ -219,9 +221,15 @@ class PlayerController @Inject constructor(
                 val start = resumeFrom(positions.of(f.messageId), f.durSec * 1000L)
                 // Vídeo: streaming (arranca con los primeros MB, seek = nuevo
                 // offset). Audio: descarga completa (chico, seek exacto).
-                val uri = if (f.kind == TgKind.VIDEO && f.fileId != 0 && f.sizeBytes > 0) {
+                val uri = if (f.isSplit()) {
+                    // Troceado (spec 13): siempre streaming, parte a parte.
+                    if (f.incomplete()) throw IOException("incomplete")
                     _dlProgress.value = null
-                    streamingId = f.fileId
+                    streamingIds = f.parts.map { it.fileId }
+                    Uri.parse("tg://parts?f=" + f.parts.joinToString(",") { "${it.fileId}:${it.size}" })
+                } else if (f.kind == TgKind.VIDEO && f.fileId != 0 && f.sizeBytes > 0) {
+                    _dlProgress.value = null
+                    streamingIds = listOf(f.fileId)
                     Uri.parse("tg://file/${f.fileId}?total=${f.sizeBytes}")
                 } else {
                     val src = fetcher.awaitFile(f.fileId) { p -> _dlProgress.value = p } ?: throw IOException("download")
@@ -387,10 +395,10 @@ class PlayerController @Inject constructor(
     }
 
     private fun cancelStream() {
-        val id = streamingId
-        if (id == 0) return
-        streamingId = 0
-        scope.launch { runCatching { client.send(TdApi.CancelDownloadFile(id, false)) } }
+        val ids = streamingIds
+        if (ids.isEmpty()) return
+        streamingIds = emptyList()
+        scope.launch { ids.forEach { id -> runCatching { client.send(TdApi.CancelDownloadFile(id, false)) } } }
     }
 
     fun stop() {

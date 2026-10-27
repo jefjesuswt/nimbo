@@ -6,6 +6,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-27
+
+### Added
+- Files bigger than Telegram's limit (2 GB, 4 GB with Premium) are uploaded in parts (`name.ext.001`, `.002`…) and shown as one file. Videos stream across parts with normal seeking; downloading joins the parts. Outside Nimbo the parts join with 7-Zip.
+
 ## [1.1.0] - 2026-10-26
 
 ### Added
@@ -65,6 +70,7 @@ First public release.
 - Your `api_id` / `api_hash` are typed in the app and stored encrypted on the phone only; Nimbo ships no keys.
 - The Telegram session database is encrypted and excluded from backups.
 
-[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/jefjesuswt/nimbo/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jefjesuswt/nimbo/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/jefjesuswt/nimbo/releases/tag/v1.0.0

@@ -51,5 +51,7 @@
 - ~~10 Copia automática de la galería~~ descartada: frágil en segundo plano (sesión TDLib desde WorkManager, restricciones de carga/red). PR #3 cerrado
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
-- [ ] 13 Archivos > 2 GB (troceo)
+- [x] 13 Archivos > 2 GB (troceo): subir en partes, listar como uno, streaming entre partes, descargar unido, borrar/mover/copiar todas
+- [ ] 13 verificar en celu: subir vídeo > 2 GB, seek cruzando partes, descargar unido, mover/borrar
+- [ ] 13b Abrir troceados no-vídeo en el visor (hoy pide descargar)
 - [ ] 12 Cifrado antes de subir (al final: mayor riesgo de perder datos)

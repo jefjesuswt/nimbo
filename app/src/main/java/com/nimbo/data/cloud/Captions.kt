@@ -134,6 +134,27 @@ fun siblingName(name: String, tgt: String): String {
     else "$name.$tgt"
 }
 
+// Troceo (spec 13): archivo > límite de Telegram partido en
+// `nombre.ext.001`, `.002`… (formato split de 7-Zip) con
+// `#part 1/3 <grupo>`. Nimbo los junta en uno; fuera se unen con 7-Zip.
+const val TgPartTag = "#part"
+
+data class PartTag(val index: Int, val count: Int, val group: String)
+
+fun tagPart(caption: String, p: PartTag): String =
+    "$caption $TgPartTag ${p.index}/${p.count} ${p.group}".trim()
+
+fun parsePart(caption: String): PartTag? {
+    val m = Regex("$TgPartTag (\\d+)/(\\d+) (\\w+)").find(caption) ?: return null
+    val i = m.groupValues[1].toIntOrNull() ?: return null
+    val n = m.groupValues[2].toIntOrNull() ?: return null
+    return if (i in 1..n) PartTag(i, n, m.groupValues[3]) else null
+}
+
+fun partName(name: String, index: Int): String = "$name.${index.toString().padStart(3, '0')}"
+
+fun partBaseName(name: String): String = name.replace(Regex("\\.\\d{3}$"), "")
+
 // Audios sin arte embebido toman la cover de su carpeta (folder → fileId).
 // Solo carpeta exacta: nada de heredar de padres ni subcarpetas.
 fun applyCoverLinks(files: List<TgFile>, links: Map<String, Int>): List<TgFile> =
@@ -206,7 +227,8 @@ fun mapMessage(m: TdApi.Message): TgFile? {
             // Cover generada como documento: oculta (no era archivo).
             if (parseCoverLink(caption).isNotEmpty() && isGenCover(caption)) return null
             val d = c.document
-            val name = d.fileName.ifEmpty { "file" }
+            val part = parsePart(caption)
+            val name = d.fileName.ifEmpty { "file" }.let { if (part != null) partBaseName(it) else it }
             val kind = when (name.substringAfterLast('.', "").lowercase()) {
                 "mp3", "m4a", "ogg", "opus", "flac", "wav", "aac" -> TgKind.AUDIO
                 "zip", "7z", "tar", "rar", "gz", "xz" -> TgKind.ARCHIVE
@@ -230,7 +252,10 @@ fun mapMessage(m: TdApi.Message): TgFile? {
                 title = if (isAudio) mTitle else "",
                 artist = if (isAudio) mArtist else "",
                 thumbFileId = if (selfThumb) d.document.id else if (kind == TgKind.IMAGE || kind == TgKind.VIDEO) d.thumbnail?.file?.id ?: 0 else 0,
-                thumbMini = if (kind == TgKind.IMAGE || kind == TgKind.VIDEO) d.minithumbnail?.data ?: byteArrayOf() else byteArrayOf()
+                thumbMini = if (kind == TgKind.IMAGE || kind == TgKind.VIDEO) d.minithumbnail?.data ?: byteArrayOf() else byteArrayOf(),
+                parts = part?.let { listOf(TgPart(it.index, m.id, d.document.id, d.document.size)) }.orEmpty(),
+                partCount = part?.count ?: 0,
+                partGroup = part?.group.orEmpty()
             ).let { it.copy(meta = tgMeta(it)) }
         }
         else -> null

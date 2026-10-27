@@ -134,6 +134,8 @@
     <string name="streaming_name">Reproduciendo %1$s</string>
     <string name="tg_not_found">No se encontró la app de Telegram</string>
     <string name="couldnt_open">No se pudo abrir %1$s</string>
+    <string name="incomplete">Incompleto</string>
+    <string name="split_download_hint">%1$s está en partes: descárgalo para abrirlo</string>
     <string name="filter_show">Mostrar</string>
     <string name="filter_all">Todo</string>
     <string name="filter_media">Multimedia</string>

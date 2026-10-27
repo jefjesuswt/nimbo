@@ -13,6 +13,7 @@ import com.nimbo.data.cloud.PlaybackPositions
 import com.nimbo.data.cloud.SortKey
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.isSplit
 import com.nimbo.data.cloud.isTextFile
 import com.nimbo.data.cloud.normalizePath
 import com.nimbo.data.cloud.parentOf
@@ -184,6 +185,9 @@ class CloudViewModel @AssistedInject constructor(
             }
             f.kind == TgKind.DOC && isTextFile(f.name) -> emit(CloudEvent.OpenReader(f.messageId))
             f.kind == TgKind.VIDEO -> emit(CloudEvent.OpenVideo(f.messageId))
+            // ponytail: troceado no-vídeo no se abre (sería solo la parte 1);
+            // unir en caché para el visor si hace falta.
+            f.isSplit() -> say(text(R.string.split_download_hint, f.showTitle()))
             else -> viewModelScope.launch {
                 val path = fetcher.download(f.fileId)
                 val mime = when (f.kind) {

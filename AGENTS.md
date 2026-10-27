@@ -46,6 +46,7 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 ## Formato en la nube (contrato, no romper)
 - Carpeta: `#nimbo/<ruta>` en el caption. Se lee también `#toolbox/<ruta>` (subidas viejas); el retag migra a `#nimbo/`.
 - Audio: `#tgmeta <seg>s "título" "artista"`. Cover de carpeta: `#tgcover *` (+ `#tggen` si salió del arte embebido, + `#tgname "cover.jpg"` si era archivo). Carpeta vacía: texto `#tgkeep`. Traducción guardada: `#tgtrans`.
+- Archivo > límite: partes `nombre.ext.001`… con `#part <i>/<n> <grupo>` (se agrupan por carpeta + grupo; mover/borrar actúa sobre todas).
 - Contrato en `data/cloud/Captions.kt`. Carátulas: SOLO arte embebido en el audio o archivo canónico de la misma carpeta (`cover.jpg`, `folder.png`, `front.jpg`…, ver `CoverNames`). Sin heredar de subcarpetas/padres, sin emparejar por nombre de pista.
 
 ## Seguridad

@@ -138,7 +138,7 @@ class CloudRepository @Inject constructor(
     // Se oculta ya y se borra en Telegram a los 5 s. Si la app muere antes,
     // no se borra (lado seguro). Devuelve el token para deshacer.
     fun deleteWithUndo(files: List<TgFile>): Long {
-        val ids = files.map { it.messageId }.toSet()
+        val ids = files.flatMap { it.messageIds() }.toSet()
         hidden += ids
         _files.update { fs -> fs.filterNot { it.messageId in ids } }
         val token = tokens.incrementAndGet()
@@ -156,7 +156,7 @@ class CloudRepository @Inject constructor(
     fun undoDelete(token: Long) {
         val (job, files) = pendingDel.remove(token) ?: return
         job.cancel()
-        hidden -= files.map { it.messageId }.toSet()
+        hidden -= files.flatMap { it.messageIds() }.toSet()
         _files.update { fs -> (fs + files).sortedByDescending { it.messageId } }
     }
 
@@ -238,7 +238,7 @@ class CloudRepository @Inject constructor(
             val withKnown = all.map { f ->
                 if (f.coverHash.isEmpty()) known[f.messageId]?.let { f.copy(coverHash = it) } ?: f else f
             }
-            val visible = applyCoverLinks(withKnown, links).sortedByDescending { it.messageId }
+            val visible = applyCoverLinks(groupParts(withKnown), links).sortedByDescending { it.messageId }
             _files.value = visible.filterNot { it.messageId in hidden }
             coverMsgs = coverIds
             keepMsgs = keeps

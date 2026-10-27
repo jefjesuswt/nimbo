@@ -66,6 +66,7 @@ import com.nimbo.R
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.countRecursive
+import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.player.progressFrac
 import com.nimbo.ui.common.EmptyState
@@ -106,7 +107,12 @@ fun FilesView(
     val showCrumb = listing.showCrumb
     val flat = listing.flat
     fun label(path: String) = if (searching) path else path.substringAfterLast('/')
-    fun meta(f: TgFile) = if (searching && f.folder.isNotEmpty()) "${f.folder} · ${f.meta}" else f.meta
+    val incompleteLabel = stringResource(R.string.incomplete)
+    fun meta(f: TgFile) = listOfNotNull(
+        incompleteLabel.takeIf { f.incomplete() },
+        f.folder.takeIf { searching && it.isNotEmpty() },
+        f.meta
+    ).joinToString(" · ")
     if (subs.isEmpty() && files.isEmpty()) {
         Column(Modifier.fillMaxWidth()) {
             SubHeader(syncing, dir, onDir, showCrumb)

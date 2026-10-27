@@ -134,6 +134,8 @@
     <string name="streaming_name">%1$s をストリーミング中</string>
     <string name="tg_not_found">Telegram アプリが見つかりません</string>
     <string name="couldnt_open">%1$s を開けませんでした</string>
+    <string name="incomplete">不完全</string>
+    <string name="split_download_hint">%1$s は分割されています。開くにはダウンロードしてください</string>
     <string name="filter_show">表示</string>
     <string name="filter_all">すべて</string>
     <string name="filter_media">メディア</string>

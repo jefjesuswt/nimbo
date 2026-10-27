@@ -94,6 +94,23 @@ class CloudRepositoryTest {
         assertTrue(store.rows.isEmpty())
     }
 
+    // Troceado: se lista uno y se borran todas sus partes.
+    @Test fun splitFileListsOnceAndDeletesAllParts() = runTest {
+        td.savedMessages(
+            docMessage(2, "v.mp4.002", "#nimbo/x #part 2/2 g1"),
+            docMessage(1, "v.mp4.001", "#nimbo/x #part 1/2 g1")
+        )
+        val r = repo()
+        td.auth.value = TgAuthState.READY
+        advanceUntilIdle()
+        assertEquals(listOf("v.mp4"), r.files.value.map { it.name })
+        assertEquals(2, store.rows.values.single().parts.size)
+        r.deleteWithUndo(r.files.value)
+        advanceTimeBy(5_100)
+        advanceUntilIdle()
+        assertEquals(setOf(1L, 2L), td.sentOf<TdApi.DeleteMessages>().single().messageIds.toSet())
+    }
+
     // Mover = retag de carpeta, sin re-subir.
     @Test fun moveRetagsCaption() = runTest {
         val m = docMessage(1, "a.pdf", "#nimbo/old")

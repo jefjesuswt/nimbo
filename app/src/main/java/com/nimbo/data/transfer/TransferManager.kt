@@ -7,25 +7,40 @@ import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.documentfile.provider.DocumentFile
 import com.nimbo.core.di.ApplicationScope
 import com.nimbo.core.di.IoDispatcher
 import com.nimbo.core.tdlib.TdClient
 import com.nimbo.core.tdlib.TgAuthState
 import com.nimbo.core.tdlib.awaitFile
+import com.nimbo.core.tdlib.call
 import com.nimbo.core.tdlib.mainFileId
+import com.nimbo.core.tdlib.orNull
 import com.nimbo.data.cloud.CloudRepository
+import com.nimbo.data.cloud.PartLimit
+import com.nimbo.data.cloud.PartLimitPremium
+import com.nimbo.data.cloud.PartTag
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgGenTag
 import com.nimbo.data.cloud.TgTransTag
+import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.isAudioName
 import com.nimbo.data.cloud.isCoverName
+import com.nimbo.data.cloud.isSplit
+import com.nimbo.data.cloud.messageIds
+import com.nimbo.data.cloud.partName
 import com.nimbo.data.cloud.siblingName
+import com.nimbo.data.cloud.splitPlan
 import com.nimbo.data.cloud.tagCoverLink
 import com.nimbo.data.cloud.tagCoverName
 import com.nimbo.data.cloud.tagFolder
 import com.nimbo.data.cloud.tagMeta
+import com.nimbo.data.cloud.tagPart
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -77,11 +92,13 @@ enum class TransferNotice { UPLOAD_CANCELLED, DOWNLOAD_CANCELLED }
 
 enum class ResolveMode { SKIP, DUPLICATE, REPLACE }
 
-data class Conflict(val jobIdx: Int, val name: String, val folder: String, val msgId: Long)
+data class Conflict(val jobIdx: Int, val name: String, val folder: String, val msgIds: List<Long>)
 data class PendingBatch(val label: BatchLabel, val jobs: List<UpJob>, val conflicts: List<Conflict>)
 data class UpJob(
     val uri: Uri, val folder: String, val name: String, val size: Long,
-    val cover: Boolean = false, val data: ByteArray? = null, val extraTag: String = ""
+    val cover: Boolean = false, val data: ByteArray? = null, val extraTag: String = "",
+    // Parte de un archivo troceado (spec 13): bytes [offset, offset+size).
+    val part: PartTag? = null, val offset: Long = 0
 )
 
 // Subidas y descargas por lotes, en serie (un Mutex): conflictos, cancelar
@@ -182,12 +199,12 @@ class TransferManager @Inject constructor(
     // Detecta choques (mismo folder+nombre, o cover de esa carpeta) antes de
     // subir. Sin choques → lote directo; con choques → diálogo.
     private suspend fun prepareBatch(label: BatchLabel, jobs: List<UpJob>) {
-        val byName = repo.files.value.associate { (it.folder + "\n" + it.name) to it.messageId }
+        val byName = repo.files.value.associate { (it.folder + "\n" + it.name) to it.messageIds() }
         val bad = mutableListOf<Conflict>()
         jobs.forEachIndexed { i, job ->
             val vis = byName[job.folder + "\n" + job.name]
-            val id = if (job.cover) repo.coverMsgs[job.folder] ?: vis else vis
-            if (id != null) bad.add(Conflict(i, job.name, job.folder, id))
+            val ids = if (job.cover) repo.coverMsgs[job.folder]?.let(::listOf) ?: vis else vis
+            if (ids != null) bad.add(Conflict(i, job.name, job.folder, ids))
         }
         if (bad.isEmpty()) runBatch(label, jobs)
         else _pending.value = PendingBatch(label, jobs, bad)
@@ -203,7 +220,7 @@ class TransferManager @Inject constructor(
                 ResolveMode.SKIP -> p.jobs.filterIndexed { i, _ -> p.conflicts.none { it.jobIdx == i } }
                 ResolveMode.DUPLICATE -> p.jobs
                 ResolveMode.REPLACE -> {
-                    runCatching { repo.deleteMessages(p.conflicts.map { it.msgId }) }
+                    runCatching { repo.deleteMessages(p.conflicts.flatMap { it.msgIds }) }
                     p.jobs
                 }
             }
@@ -242,7 +259,8 @@ class TransferManager @Inject constructor(
     }
 
     // Devuelve true si todo el lote subió.
-    private suspend fun runBatch(label: BatchLabel, jobs: List<UpJob>): Boolean {
+    private suspend fun runBatch(label: BatchLabel, input: List<UpJob>): Boolean {
+        val jobs = splitJobs(input)
         val id = ids.incrementAndGet()
         val total = jobs.sumOf { it.size }.coerceAtLeast(1L)
         _batches.update {
@@ -306,6 +324,22 @@ class TransferManager @Inject constructor(
         return bad.isEmpty()
     }
 
+    // Más grande que el límite de Telegram → partes .001, .002… (spec 13).
+    // Cada parte es un item del lote: cancelar borra las ya subidas.
+    private suspend fun splitJobs(jobs: List<UpJob>): List<UpJob> {
+        if (jobs.none { it.size > PartLimit }) return jobs
+        val premium = client.call<TdApi.User>(TdApi.GetMe()).orNull()?.isPremium == true
+        val max = if (premium) PartLimitPremium else PartLimit
+        return jobs.flatMap { j ->
+            val plan = splitPlan(j.size, max)
+            if (plan.isEmpty() || j.data != null) return@flatMap listOf(j)
+            val group = UUID.randomUUID().toString().take(8)
+            plan.mapIndexed { i, (off, len) ->
+                j.copy(name = partName(j.name, i + 1), size = len, offset = off, part = PartTag(i + 1, plan.size, group))
+            }
+        }
+    }
+
     // subdir único (colisiones fuera, nombre intacto).
     private fun stageFor(name: String): java.io.File {
         val safe = name.replace('/', '_').takeLast(120).ifEmpty { "file" }
@@ -324,9 +358,15 @@ class TransferManager @Inject constructor(
                 return stage
             }
             ctx.contentResolver.openInputStream(job.uri)?.use { input ->
-                stage.outputStream().use { input.copyTo(it) }
+                stage.outputStream().use { if (job.part == null) input.copyTo(it) else copyRange(input, it, job.offset, job.size) }
             } ?: run {
                 Log.w(TAG, "STAGE-NULL")
+                return null
+            }
+            // Parte corta = archivo unido corrupto: no se envía.
+            if (job.part != null && stage.length() != job.size) {
+                Log.w(TAG, "STAGE-PARTE-CORTA ${stage.length()}/${job.size}")
+                runCatching { stage.delete() }
                 return null
             }
             // Lectura vacía con tamaño esperado > 0 = fallo SAF: no enviar
@@ -355,6 +395,7 @@ class TransferManager @Inject constructor(
                 caption = if (job.data != null) "$caption $TgGenTag" else tagCoverName(caption, job.name)
             } else {
                 if (job.extraTag.isNotEmpty()) caption = "$caption ${job.extraTag}"
+                job.part?.let { caption = tagPart(caption, it) }
                 // Docs no traen metadatos de Telegram: se extraen aquí y viajan
                 // en el caption (#tgmeta). Solo audio (barato, local).
                 audioMeta(stage, job.name)?.let { (t, a, d) -> caption = tagMeta(caption, t, a, d) }
@@ -475,24 +516,74 @@ class TransferManager @Inject constructor(
     private suspend fun downloadOne(f: TgFile, sub: String): Boolean = runCatching {
         // ponytail: Android 8-9 no tiene MediaStore.Downloads (y pediría
         // permiso de almacenamiento): sin descarga a Downloads ahí.
-        if (Build.VERSION.SDK_INT < 29) return@runCatching false
+        if (Build.VERSION.SDK_INT < 29 || f.incomplete()) return@runCatching false
+        if (f.isSplit()) return@runCatching downloadJoined(f, sub)
         val path = fetcher.awaitFile(f.fileId) ?: return@runCatching false
-        val rel = if (sub.isEmpty()) "Download/Nimbo" else "Download/Nimbo/$sub"
-        val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, f.name)
-            put(MediaStore.Downloads.MIME_TYPE, mimeOf(f.name))
-            put(MediaStore.Downloads.RELATIVE_PATH, rel)
-        }
-        val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: return@runCatching false
+        val uri = insertDownload(f.name, sub) ?: return@runCatching false
         ctx.contentResolver.openOutputStream(uri)?.use { out ->
             java.io.File(path).inputStream().use { it.copyTo(out) }
         } ?: return@runCatching false
         true
     }.getOrDefault(false)
 
+    // Partes una tras otra al mismo archivo de Downloads; cada parte sale
+    // de la caché de TDLib al copiarla (si no, ocupa el doble).
+    @RequiresApi(29)
+    private suspend fun downloadJoined(f: TgFile, sub: String): Boolean {
+        val uri = insertDownload(f.name, sub) ?: return false
+        val ok = runCatching {
+            ctx.contentResolver.openOutputStream(uri)?.use { out ->
+                f.parts.all { p ->
+                    val path = fetcher.awaitFile(p.fileId) ?: return@all false
+                    java.io.File(path).inputStream().use { it.copyTo(out) }
+                    client.send(TdApi.DeleteFile(p.fileId))
+                    true
+                }
+            } ?: false
+        }.getOrDefault(false)
+        if (!ok) runCatching { ctx.contentResolver.delete(uri, null, null) }
+        return ok
+    }
+
+    @RequiresApi(29)
+    private fun insertDownload(name: String, sub: String): Uri? {
+        val rel = if (sub.isEmpty()) "Download/Nimbo" else "Download/Nimbo/$sub"
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, name)
+            put(MediaStore.Downloads.MIME_TYPE, mimeOf(name))
+            put(MediaStore.Downloads.RELATIVE_PATH, rel)
+        }
+        return ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+    }
+
     private companion object {
         const val TAG = "Transfers"
+    }
+}
+
+// Copia [offset, offset+len) del stream. skip() puede quedarse corto: se
+// descarta leyendo.
+// ponytail: en SAF las partes altas leen y tiran lo previo; FileChannel
+// con position() si tarda demasiado.
+fun copyRange(input: InputStream, out: OutputStream, offset: Long, len: Long) {
+    val buf = ByteArray(256 * 1024)
+    var skip = offset
+    while (skip > 0) {
+        val n = input.skip(skip)
+        if (n > 0) {
+            skip -= n
+            continue
+        }
+        val r = input.read(buf, 0, minOf(buf.size.toLong(), skip).toInt())
+        if (r < 0) return
+        skip -= r
+    }
+    var left = len
+    while (left > 0) {
+        val r = input.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+        if (r < 0) return
+        out.write(buf, 0, r)
+        left -= r
     }
 }
 
