@@ -17,7 +17,7 @@ import javax.inject.Singleton
 // Llamar fuera del hilo principal (SQLite bloquea).
 @Singleton
 class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
-    SQLiteOpenHelper(ctx.applicationContext, "tg_index", null, 6), CloudStore {
+    SQLiteOpenHelper(ctx.applicationContext, "tg_index", null, 7), CloudStore {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -25,7 +25,7 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
                 "message_id INTEGER PRIMARY KEY, file_id INTEGER, name TEXT, " +
                 "kind TEXT, size INTEGER, date INTEGER, folder TEXT, " +
                 "title TEXT, artist TEXT, thumb_file INTEGER, cover_hash TEXT, " +
-                "dur_sec INTEGER, parts TEXT, part_count INTEGER)"
+                "dur_sec INTEGER, parts TEXT, part_count INTEGER, enc_info TEXT)"
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_folder ON tg_files(folder)")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_name ON tg_files(name)")
@@ -80,6 +80,7 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
                     put("dur_sec", f.durSec)
                     put("parts", f.parts.joinToString(",") { "${it.index}:${it.messageId}:${it.fileId}:${it.size}" })
                     put("part_count", f.partCount)
+                    put("enc_info", f.encInfo)
                 }
                 db.replace("tg_files", null, v)
             }
@@ -108,6 +109,7 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
             val iDu = c.getColumnIndexOrThrow("dur_sec")
             val iP = c.getColumnIndexOrThrow("parts")
             val iPc = c.getColumnIndexOrThrow("part_count")
+            val iE = c.getColumnIndexOrThrow("enc_info")
             while (c.moveToNext()) {
                 val kind = runCatching { TgKind.valueOf(c.getString(iK)) }
                     .getOrDefault(TgKind.DOC)
@@ -128,7 +130,8 @@ class CloudIndex @Inject constructor(@ApplicationContext ctx: Context) :
                         coverHash = c.getString(iCh) ?: "",
                         durSec = c.getInt(iDu),
                         parts = parseParts(c.getString(iP).orEmpty()),
-                        partCount = c.getInt(iPc)
+                        partCount = c.getInt(iPc),
+                        encInfo = c.getString(iE).orEmpty()
                     )
                 )
             }

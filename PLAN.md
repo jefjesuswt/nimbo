@@ -53,5 +53,7 @@
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
 - [x] 13 Archivos > 2 GB (troceo): subir en partes, listar como uno, streaming entre partes, descargar unido, borrar/mover/copiar todas
 - [ ] 13 verificar en celu: subir vídeo > 2 GB, seek cruzando partes, descargar unido, mover/borrar
-- [ ] 13b Abrir troceados no-vídeo en el visor (hoy pide descargar)
-- [ ] 12 Cifrado antes de subir (al final: mayor riesgo de perder datos)
+- [x] 13b Abrir troceados no-vídeo en el visor (PlainFiles los une en caché)
+- [x] 12 Cifrado antes de subir: formato por bloques, clave con contraseña en la nube, subir/listar/streaming/abrir/descargar, ajustes
+- [ ] 12 verificar en celu: configurar, subir cifrado (vídeo, audio, foto, texto, > 2 GB), seek, bloquear/desbloquear, otro teléfono, contraseña errónea
+- [ ] 12b Cambiar contraseña · [ ] 12c cifrar lo ya subido · [ ] 12d miniaturas cifradas

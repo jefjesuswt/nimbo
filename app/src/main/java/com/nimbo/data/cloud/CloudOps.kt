@@ -5,6 +5,9 @@ import com.nimbo.core.di.ApplicationScope
 import com.nimbo.core.tdlib.TdClient
 import com.nimbo.core.tdlib.captionText
 import com.nimbo.core.tdlib.ok
+import com.nimbo.data.crypto.EncInfo
+import com.nimbo.data.crypto.KeyRing
+import com.nimbo.data.crypto.sealInfo
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +22,7 @@ import org.drinkless.tdlib.TdApi
 class CloudOps @Inject constructor(
     private val client: TdClient,
     private val repo: CloudRepository,
+    private val keys: KeyRing,
     @ApplicationScope private val scope: CoroutineScope
 ) {
     private suspend fun <T> detached(block: suspend () -> T): T = scope.async { block() }.await()
@@ -35,8 +39,17 @@ class CloudOps @Inject constructor(
     }
 
     // Rename = título display en #tgmeta (instantáneo; el archivo no se toca).
+    // Cifrado: el título va dentro de #enc; se re-sella en todas las partes.
     suspend fun renameTitle(f: TgFile, title: String): Boolean = detached {
         val ok = runCatching {
+            if (f.encrypted()) {
+                val key = keys.key.value ?: return@runCatching false
+                val info = sealInfo(key, EncInfo(f.name, f.sizeBytes, tagMeta("", title, f.artist, f.durSec)))
+                return@runCatching f.messageIds().all { id ->
+                    val cap = currentCaption(id) ?: return@runCatching false
+                    setCaption(id, tagEnc(cap.replace(Regex("$TgEncTag \\S+"), "").trim(), info))
+                }
+            }
             val cap = currentCaption(f.messageId) ?: ""
             val (_, artist, dur) = parseMeta(cap)
             setCaption(f.messageId, tagMeta(tagFolder(cap, parseFolder(cap)), title, artist, dur))

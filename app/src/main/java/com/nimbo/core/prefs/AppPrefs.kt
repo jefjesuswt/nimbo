@@ -73,7 +73,13 @@ class AppPrefs @Inject constructor(private val p: SharedPreferences) {
         get() = p.getBoolean(MODELS_MOBILE, false)
         set(v) = p.edit { putBoolean(MODELS_MOBILE, v) }
 
+    // Cifrar subidas nuevas (spec 12). Sin clave en el teléfono no se sube.
+    var encryptUploads: Boolean
+        get() = p.getBoolean(ENCRYPT_UPLOADS, false)
+        set(v) = p.edit { putBoolean(ENCRYPT_UPLOADS, v) }
+
     private companion object {
+        const val ENCRYPT_UPLOADS = "encrypt_uploads"
         const val THEME_MODE = "theme_mode"
         const val SEED = "seed"
         const val DYNAMIC = "dynamic"

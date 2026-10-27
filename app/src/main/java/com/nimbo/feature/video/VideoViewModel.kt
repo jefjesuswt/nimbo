@@ -6,7 +6,7 @@ import androidx.navigation.toRoute
 import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
-import com.nimbo.data.transfer.FileFetcher
+import com.nimbo.data.transfer.PlainFiles
 import com.nimbo.feature.main.VideoRoute
 import com.nimbo.player.PlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +18,7 @@ import javax.inject.Inject
 class VideoViewModel @Inject constructor(
     handle: SavedStateHandle,
     private val repo: CloudRepository,
-    private val fetcher: FileFetcher,
+    private val plain: PlainFiles,
     val player: PlayerController
 ) : ViewModel() {
     private val messageId = handle.toRoute<VideoRoute>().messageId
@@ -38,7 +38,7 @@ class VideoViewModel @Inject constructor(
         val siblings = repo.files.value.filter { it.folder == f.folder && it.kind == TgKind.DOC }
         val name = pickSubtitle(f.name, siblings.map { it.name }, Locale.getDefault().language) ?: return null
         val sub = siblings.first { it.name == name }
-        val path = fetcher.awaitFile(sub.fileId, 60_000) ?: return null
+        val path = plain.path(sub, 60_000) ?: return null
         return path to name.endsWith(".vtt", ignoreCase = true)
     }
 }

@@ -9,6 +9,8 @@ import com.nimbo.core.tdlib.call
 import com.nimbo.core.tdlib.ok
 import com.nimbo.core.tdlib.orNull
 import com.nimbo.data.cloud.local.CloudStore
+import com.nimbo.data.crypto.KeyRing
+import com.nimbo.data.crypto.openNames
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,9 +36,13 @@ import org.drinkless.tdlib.TdApi
 class CloudRepository @Inject constructor(
     private val client: TdClient,
     private val index: CloudStore,
+    private val keys: KeyRing,
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher
 ) {
+    // Clave maestra envuelta (#tgkey) y su mensaje; null = sin cifrado aún.
+    private val _keyText = MutableStateFlow<Pair<Long, KeyText>?>(null)
+    val keyText: StateFlow<Pair<Long, KeyText>?> = _keyText
     private val _files = MutableStateFlow<List<TgFile>>(emptyList())
     val files: StateFlow<List<TgFile>> = _files
     private val _loading = MutableStateFlow(false)
@@ -55,7 +62,11 @@ class CloudRepository @Inject constructor(
     // Marcadores de carpeta vacía (folder → messageId del texto #tgkeep).
     @Volatile var keepMsgs: Map<String, Long> = emptyMap()
         private set
+    // Último listado sin descifrar (para re-abrir nombres al cambiar la clave).
+    @Volatile private var raw: List<TgFile> = emptyList()
     @Volatile private var lastOkMs = 0L
+    // Hubo al menos un listado bueno de la nube en esta sesión.
+    val synced: Boolean get() = lastOkMs > 0
     private val loadingNow = AtomicBoolean(false)
 
     // Borrado con deshacer (9b).
@@ -78,6 +89,13 @@ class CloudRepository @Inject constructor(
                 }
             }
         }
+        // Desbloquear/bloquear el cifrado: nombres reales u opacos al momento.
+        scope.launch {
+            keys.key.drop(1).collect { k ->
+                val gone = hidden.toSet()
+                _files.value = openNames(raw, k).filterNot { it.messageId in gone }
+            }
+        }
     }
 
     private suspend fun reset() {
@@ -91,6 +109,9 @@ class CloudRepository @Inject constructor(
         lastOkMs = 0L
         _files.value = emptyList()
         _keeps.value = emptySet()
+        _keyText.value = null
+        raw = emptyList()
+        keys.set(null)
         withContext(io) { runCatching { index.clear() } }
     }
 
@@ -132,6 +153,7 @@ class CloudRepository @Inject constructor(
     fun forget(ids: Collection<Long>) {
         val set = ids.toSet()
         _files.update { fs -> fs.filterNot { it.messageId in set } }
+        raw = raw.filterNot { it.messageId in set }
         scope.launch(io) { runCatching { set.forEach(index::delete) } }
     }
 
@@ -163,6 +185,7 @@ class CloudRepository @Inject constructor(
     // Cover deducida (hash): memoria + índice para no re-bajar.
     fun noteCover(messageId: Long, hash: String) {
         _files.update { fs -> fs.map { if (it.messageId == messageId) it.copy(coverHash = hash) else it } }
+        raw = raw.map { if (it.messageId == messageId) it.copy(coverHash = hash) else it }
         scope.launch(io) { runCatching { index.setCover(messageId, hash) } }
     }
 
@@ -200,6 +223,7 @@ class CloudRepository @Inject constructor(
             val coverIds = mutableMapOf<String, Long>()
             val keeps = mutableMapOf<String, Long>()
             val seen = mutableSetOf<Long>()
+            var keyMsg: Pair<Long, KeyText>? = null
             var from = 0L
             var pages = 0
             // Hasta página vacía (tope 20×100; scroll infinito si duele).
@@ -214,6 +238,11 @@ class CloudRepository @Inject constructor(
                     added++
                     // Marcador de carpeta vacía: no es archivo, pero navega.
                     val text = (m.content as? TdApi.MessageText)?.text?.text.orEmpty()
+                    parseKeyText(text)?.let { k ->
+                        // La más nueva manda (no debería haber dos).
+                        if (keyMsg == null) keyMsg = m.id to k
+                        return@forEach
+                    }
                     if (isKeepMark(text)) {
                         val kf = parseFolder(text)
                         if (kf.isNotEmpty() && kf !in keeps) keeps[kf] = m.id
@@ -238,18 +267,25 @@ class CloudRepository @Inject constructor(
             val withKnown = all.map { f ->
                 if (f.coverHash.isEmpty()) known[f.messageId]?.let { f.copy(coverHash = it) } ?: f else f
             }
+            // El índice guarda los cifrados opacos (nombres reales solo en
+            // memoria): bloquear no deja nada legible en el teléfono.
             val visible = applyCoverLinks(groupParts(withKnown), links).sortedByDescending { it.messageId }
-            _files.value = visible.filterNot { it.messageId in hidden }
+            raw = visible
+            _files.value = openNames(visible, keys.key.value).filterNot { it.messageId in hidden }
             coverMsgs = coverIds
             keepMsgs = keeps
             _keeps.value = keeps.keys
+            _keyText.value = keyMsg
             lastOkMs = System.currentTimeMillis()
             withContext(io) { runCatching { index.upsert(visible) } }
         } catch (e: Exception) {
             Log.w(TAG, "LOAD-ERR ${e.message}")
             // Offline: índice manda si hay filas.
             val cached = withContext(io) { runCatching { index.all() }.getOrDefault(emptyList()) }
-            if (cached.isNotEmpty()) _files.value = cached
+            if (cached.isNotEmpty()) {
+                raw = cached
+                _files.value = openNames(cached, keys.key.value)
+            }
         } finally {
             _loading.value = false
             loadingNow.set(false)

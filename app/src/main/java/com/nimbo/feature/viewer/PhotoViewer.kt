@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nimbo.R
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.encrypted
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.ui.common.LocalArtwork
 import com.nimbo.ui.common.TopSnackBox
@@ -121,7 +122,7 @@ fun PhotoViewer(vm: PhotoViewModel, onClose: () -> Unit) {
     LaunchedEffect(files) {
         files.forEach { f ->
             if (f.thumbFileId != 0) thumbsRepo.fetch(f.thumbFileId)
-            if (f.kind == TgKind.IMAGE && f.fileId != 0) thumbsRepo.fetch(f.fileId)
+            if (f.kind == TgKind.IMAGE && f.fileId != 0 && !f.encrypted()) thumbsRepo.fetch(f.fileId)
         }
     }
 

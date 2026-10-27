@@ -14,7 +14,7 @@ import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.decodeText
 import com.nimbo.data.cloud.siblingName
-import com.nimbo.data.transfer.FileFetcher
+import com.nimbo.data.transfer.PlainFiles
 import com.nimbo.data.transfer.TransferManager
 import com.nimbo.data.translate.TrError
 import com.nimbo.data.translate.Translator
@@ -48,7 +48,7 @@ enum class ReaderPage { ORIGINAL, TRANSLATED }
 class ReaderViewModel @Inject constructor(
     handle: SavedStateHandle,
     repo: CloudRepository,
-    private val fetcher: FileFetcher,
+    private val plain: PlainFiles,
     private val transfers: TransferManager,
     private val translators: TranslatorRegistry,
     @IoDispatcher private val io: CoroutineDispatcher
@@ -105,7 +105,7 @@ class ReaderViewModel @Inject constructor(
     }
 
     private suspend fun readText(f: TgFile): Pair<String, String>? = withContext(io) {
-        val path = fetcher.awaitFile(f.fileId, 60_000) ?: return@withContext null
+        val path = plain.path(f, 60_000) ?: return@withContext null
         runCatching {
             val bytes = java.io.File(path).inputStream().use { it.readBytes() }.take(512 * 1024).toByteArray()
             decodeText(bytes)

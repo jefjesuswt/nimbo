@@ -27,14 +27,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -60,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nimbo.R
 import com.nimbo.core.prefs.ThemeMode
 import com.nimbo.core.tdlib.TgAuthState
+import com.nimbo.data.crypto.EncState
 import com.nimbo.data.translate.Translator
 import com.nimbo.ui.common.NimboScaffold
 import com.nimbo.ui.common.RadioDialog
@@ -139,6 +144,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                     }
                 }
                 TelegramGroup(vm)
+                EncryptionGroup(vm)
                 TranslationGroup(vm)
                 Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
@@ -220,6 +226,93 @@ private fun TranslationGroup(vm: SettingsViewModel) {
             dlg = false
             vm.setTranslator(id)
         }
+    )
+}
+
+// Cifrado (spec 12). Sin configurar → crear contraseña; en otro teléfono
+// (o tras bloquear) → desbloquear; listo → cifrar subidas o bloquear.
+@Composable
+private fun EncryptionGroup(vm: SettingsViewModel) {
+    val state by vm.encState.collectAsStateWithLifecycle()
+    Group(stringResource(R.string.enc_group)) {
+        when (state) {
+            EncState.OFF -> PrefRow(
+                icon = Icons.Filled.Lock, title = stringResource(R.string.enc_setup),
+                sub = stringResource(R.string.enc_setup_sub),
+                onClick = { vm.openEncDialog(EncDialog.SETUP) }
+            )
+            EncState.LOCKED -> PrefRow(
+                icon = Icons.Filled.Lock, title = stringResource(R.string.enc_unlock),
+                sub = stringResource(R.string.enc_unlock_sub),
+                onClick = { vm.openEncDialog(EncDialog.UNLOCK) }
+            )
+            EncState.READY -> {
+                PrefRow(
+                    icon = Icons.Filled.Lock, title = stringResource(R.string.enc_uploads),
+                    sub = stringResource(R.string.enc_uploads_sub),
+                    trailing = { Switch(vm.encryptUploads, vm::encryptUploads) }
+                )
+                PrefRow(
+                    icon = Icons.Filled.LockOpen, title = stringResource(R.string.enc_lock),
+                    sub = stringResource(R.string.enc_lock_sub),
+                    onClick = vm::lockEnc
+                )
+            }
+        }
+    }
+    vm.encDialog?.let { PasswordDialog(vm, it) }
+}
+
+@Composable
+private fun PasswordDialog(vm: SettingsViewModel, d: EncDialog) {
+    val cs = MaterialTheme.colorScheme
+    var pw by remember { mutableStateOf("") }
+    var repeat by remember { mutableStateOf("") }
+    val setup = d == EncDialog.SETUP
+    AlertDialog(
+        onDismissRequest = { if (!vm.encBusy) vm.openEncDialog(null) },
+        title = { Text(stringResource(if (setup) R.string.enc_setup else R.string.enc_unlock)) },
+        text = {
+            Column {
+                if (setup) Text(
+                    stringResource(R.string.enc_warning),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cs.error,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                PasswordField(pw, { pw = it }, stringResource(R.string.enc_password), vm.encError != null)
+                if (setup) {
+                    Spacer(Modifier.height(8.dp))
+                    PasswordField(repeat, { repeat = it }, stringResource(R.string.enc_password_repeat), vm.encError != null)
+                }
+                vm.encError?.let {
+                    Text(stringResource(it), color = cs.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                }
+                if (vm.encBusy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !vm.encBusy && pw.isNotEmpty(), onClick = { vm.submitPassword(pw, repeat) }) {
+                Text(stringResource(if (setup) R.string.enc_setup_action else R.string.enc_unlock_action))
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !vm.encBusy, onClick = { vm.openEncDialog(null) }) { Text(stringResource(R.string.cancel)) }
+        }
+    )
+}
+
+@Composable
+private fun PasswordField(value: String, onChange: (String) -> Unit, label: String, error: Boolean) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        isError = error,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        modifier = Modifier.fillMaxWidth()
     )
 }
 

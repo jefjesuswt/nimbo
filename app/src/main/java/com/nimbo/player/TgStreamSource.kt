@@ -10,7 +10,13 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import com.nimbo.core.tdlib.TdClient
 import com.nimbo.data.cloud.partAt
+import com.nimbo.data.crypto.EncHeader
+import com.nimbo.data.crypto.EncTag
+import com.nimbo.data.crypto.blockOf
+import com.nimbo.data.crypto.openBlock
+import com.nimbo.data.crypto.plainSize
 import java.io.IOException
+import java.security.GeneralSecurityException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -145,15 +151,105 @@ class ConcatTgSource(private val client: TdClient) : DataSource {
     }
 }
 
+// Cifrado (spec 12) sobre tg://file o tg://parts: descifra por bloques. El
+// seek abre solo el bloque que toca; leer seguido no reabre nada.
+class DecryptSource(private val inner: DataSource, private val key: ByteArray) : DataSource {
+    private var uri: Uri? = null
+    private val header = ByteArray(EncHeader)
+    private var block = 0
+    private var seal = 0
+    private var total = 0L // bytes cifrados
+    private var pos = 0L // bytes en claro
+    private var left = 0L
+    private var buf = ByteArray(0)
+    private var bufIndex = -1L
+    private var innerPos = -1L // offset cifrado de lo próximo que da inner
+
+    override fun open(dataSpec: DataSpec): Long {
+        uri = dataSpec.uri
+        total = inner.open(DataSpec.Builder().setUri(dataSpec.uri).build())
+        if (total <= 0) throw IOException("size")
+        innerPos = 0
+        readInner(header, EncHeader)
+        block = blockOf(header)
+        seal = block + EncTag
+        val plain = plainSize(total, block)
+        pos = dataSpec.position
+        left = (if (dataSpec.length != C.LENGTH_UNSET.toLong()) minOf(dataSpec.length, plain - pos) else plain - pos)
+            .coerceAtLeast(0L)
+        bufIndex = -1
+        return left
+    }
+
+    private fun readInner(dst: ByteArray, len: Int) {
+        var got = 0
+        while (got < len) {
+            val n = inner.read(dst, got, len - got)
+            if (n == C.RESULT_END_OF_INPUT) throw IOException("short")
+            got += n
+        }
+        innerPos += len
+    }
+
+    private fun load(i: Long) {
+        val start = EncHeader + i * seal
+        val len = minOf(seal.toLong(), total - start).toInt()
+        if (innerPos != start) {
+            inner.close()
+            inner.open(DataSpec.Builder().setUri(uri!!).setPosition(start).build())
+            innerPos = start
+        }
+        val sealed = ByteArray(len)
+        readInner(sealed, len)
+        buf = try {
+            openBlock(key, header, i, start + len == total, sealed, len)
+        } catch (e: GeneralSecurityException) {
+            throw IOException("auth", e)
+        }
+        bufIndex = i
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
+        if (left <= 0) return C.RESULT_END_OF_INPUT
+        val i = pos / block
+        if (i != bufIndex) load(i)
+        val from = (pos - i * block).toInt()
+        val n = minOf(length.toLong(), left, (buf.size - from).toLong()).toInt()
+        if (n <= 0) return C.RESULT_END_OF_INPUT
+        System.arraycopy(buf, from, buffer, offset, n)
+        pos += n
+        left -= n
+        return n
+    }
+
+    override fun addTransferListener(transferListener: TransferListener) {}
+    override fun getUri(): Uri? = uri
+    override fun close() {
+        inner.close()
+        innerPos = -1
+        buf = ByteArray(0)
+        bufIndex = -1
+    }
+}
+
 // tg:// → streaming TDLib; el resto (archivo local, subtítulos) → normal.
-class TgOrLocalSource(private val local: DataSource, private val client: TdClient) : DataSource {
+// `&enc=1` → descifrado por bloques encima (spec 12).
+class TgOrLocalSource(
+    private val local: DataSource,
+    private val client: TdClient,
+    private val key: () -> ByteArray?
+) : DataSource {
     private var cur: DataSource? = null
     override fun open(dataSpec: DataSpec): Long {
-        val s = when {
+        val tg = when {
             dataSpec.uri.scheme != "tg" -> local
             dataSpec.uri.host == "parts" -> ConcatTgSource(client)
             else -> TgStreamSource(client)
         }
+        val s = if (tg !== local && dataSpec.uri.getQueryParameter("enc") == "1") {
+            DecryptSource(tg, key() ?: throw IOException("locked"))
+        } else tg
         cur = s
         return s.open(dataSpec)
     }

@@ -23,14 +23,19 @@ import com.nimbo.core.di.IoDispatcher
 import com.nimbo.core.prefs.AppPrefs
 import com.nimbo.core.tdlib.TdClient
 import com.nimbo.core.tdlib.TgAuthState
+import com.nimbo.core.util.trimCache
 import com.nimbo.data.cloud.PlaybackPositions
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.encrypted
 import com.nimbo.data.cloud.incomplete
+import com.nimbo.data.crypto.EncBlockLog
+import com.nimbo.data.crypto.KeyRing
+import com.nimbo.data.crypto.cipherSize
+import com.nimbo.data.transfer.PlainFiles
 import com.nimbo.data.cloud.isSplit
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.data.media.CoverRepository
-import com.nimbo.data.transfer.FileFetcher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
@@ -53,7 +58,8 @@ import org.drinkless.tdlib.TdApi
 class PlayerController @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val client: TdClient,
-    private val fetcher: FileFetcher,
+    private val plain: PlainFiles,
+    private val keys: KeyRing,
     private val positions: PlaybackPositions,
     private val covers: CoverRepository,
     private val prefs: AppPrefs,
@@ -129,7 +135,7 @@ class PlayerController @Inject constructor(
             // DefaultMediaSourceFactory: progresivo + subtítulos laterales.
             .setMediaSourceFactory(
                 DefaultMediaSourceFactory(ctx).setDataSourceFactory {
-                    TgOrLocalSource(DefaultDataSource.Factory(ctx).createDataSource(), client)
+                    TgOrLocalSource(DefaultDataSource.Factory(ctx).createDataSource(), client) { keys.key.value }
                 }
             )
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
@@ -221,19 +227,25 @@ class PlayerController @Inject constructor(
                 val start = resumeFrom(positions.of(f.messageId), f.durSec * 1000L)
                 // Vídeo: streaming (arranca con los primeros MB, seek = nuevo
                 // offset). Audio: descarga completa (chico, seek exacto).
+                if (f.locked) throw IOException("locked")
+                // Cifrado (spec 12): DecryptSource encima; total = bytes cifrados.
+                val enc = if (f.encrypted()) "&enc=1" else ""
                 val uri = if (f.isSplit()) {
                     // Troceado (spec 13): siempre streaming, parte a parte.
                     if (f.incomplete()) throw IOException("incomplete")
                     _dlProgress.value = null
                     streamingIds = f.parts.map { it.fileId }
-                    Uri.parse("tg://parts?f=" + f.parts.joinToString(",") { "${it.fileId}:${it.size}" })
+                    Uri.parse("tg://parts?f=" + f.parts.joinToString(",") { "${it.fileId}:${it.size}" } + enc)
                 } else if (f.kind == TgKind.VIDEO && f.fileId != 0 && f.sizeBytes > 0) {
                     _dlProgress.value = null
                     streamingIds = listOf(f.fileId)
-                    Uri.parse("tg://file/${f.fileId}?total=${f.sizeBytes}")
+                    val total = if (f.encrypted()) cipherSize(f.sizeBytes, 1 shl EncBlockLog) else f.sizeBytes
+                    Uri.parse("tg://file/${f.fileId}?total=$total$enc")
                 } else {
-                    val src = fetcher.awaitFile(f.fileId) { p -> _dlProgress.value = p } ?: throw IOException("download")
-                    Uri.fromFile(java.io.File(withContext(io) { stageCopy(src, f) }))
+                    val src = plain.path(f) { p -> _dlProgress.value = p } ?: throw IOException("download")
+                    // Unido/descifrado ya vive en la caché de PlainFiles (se borra al bloquear).
+                    val path = if (f.encrypted() || f.isSplit()) src else withContext(io) { stageCopy(src, f) }
+                    Uri.fromFile(java.io.File(path))
                 }
                 if (_track.value?.messageId != f.messageId) return@launch
                 val p = ensure()
@@ -276,16 +288,6 @@ class PlayerController @Inject constructor(
         bmp.compress(Bitmap.CompressFormat.JPEG, 80, out)
         out.toByteArray()
     }.getOrNull()
-
-    private fun trimCache(dir: java.io.File, cap: Long) {
-        val files = dir.listFiles()?.sortedBy { it.lastModified() } ?: return
-        var total = files.sumOf { it.length() }
-        for (f in files) {
-            if (total <= cap) break
-            total -= f.length()
-            f.delete()
-        }
-    }
 
     fun toggle() {
         val p = player ?: return

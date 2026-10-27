@@ -155,6 +155,37 @@ fun partName(name: String, index: Int): String = "$name.${index.toString().padSt
 
 fun partBaseName(name: String): String = name.replace(Regex("\\.\\d{3}$"), "")
 
+// Cifrado (spec 12): el archivo viaja como `<azar>.nimbo` (formato en
+// data/crypto/EncFormat.kt) con `#enc <info>`: nombre real, tamaño y
+// #tgmeta cifrados con la clave maestra. La carpeta sí va en claro.
+const val TgEncTag = "#enc"
+
+fun tagEnc(caption: String, info: String): String = "$caption $TgEncTag $info".trim()
+
+fun parseEnc(caption: String): String =
+    Regex("$TgEncTag ([A-Za-z0-9_-]+)").find(caption)?.groupValues?.get(1).orEmpty()
+
+// Clave maestra envuelta con la contraseña, en un texto de Saved Messages
+// (sirve en otro teléfono): `#tgkey 1 <iteraciones> <sal> <envuelta>`.
+const val TgKeyTag = "#tgkey"
+
+data class KeyText(val iters: Int, val salt: String, val wrapped: String)
+
+fun keyText(k: KeyText): String = "$TgKeyTag 1 ${k.iters} ${k.salt} ${k.wrapped}"
+
+fun parseKeyText(text: String): KeyText? {
+    val m = Regex("$TgKeyTag 1 (\\d+) ([A-Za-z0-9_-]+) ([A-Za-z0-9_-]+)").find(text) ?: return null
+    return KeyText(m.groupValues[1].toIntOrNull() ?: return null, m.groupValues[2], m.groupValues[3])
+}
+
+fun kindOfName(name: String): TgKind = when (name.substringAfterLast('.', "").lowercase()) {
+    "mp3", "m4a", "ogg", "opus", "flac", "wav", "aac" -> TgKind.AUDIO
+    "zip", "7z", "tar", "rar", "gz", "xz" -> TgKind.ARCHIVE
+    "jpg", "jpeg", "png", "gif", "webp", "heic" -> TgKind.IMAGE
+    "mp4", "mkv", "mov", "webm" -> TgKind.VIDEO
+    else -> TgKind.DOC
+}
+
 // Audios sin arte embebido toman la cover de su carpeta (folder → fileId).
 // Solo carpeta exacta: nada de heredar de padres ni subcarpetas.
 fun applyCoverLinks(files: List<TgFile>, links: Map<String, Int>): List<TgFile> =
@@ -229,13 +260,7 @@ fun mapMessage(m: TdApi.Message): TgFile? {
             val d = c.document
             val part = parsePart(caption)
             val name = d.fileName.ifEmpty { "file" }.let { if (part != null) partBaseName(it) else it }
-            val kind = when (name.substringAfterLast('.', "").lowercase()) {
-                "mp3", "m4a", "ogg", "opus", "flac", "wav", "aac" -> TgKind.AUDIO
-                "zip", "7z", "tar", "rar", "gz", "xz" -> TgKind.ARCHIVE
-                "jpg", "jpeg", "png", "gif", "webp", "heic" -> TgKind.IMAGE
-                "mp4", "mkv", "mov", "webm" -> TgKind.VIDEO
-                else -> TgKind.DOC
-            }
+            val kind = kindOfName(name)
             val isAudio = kind == TgKind.AUDIO
             val ds = if (isAudio) mDur else 0
             // Cover-documento: sin thumb del servidor → el propio archivo
@@ -255,7 +280,8 @@ fun mapMessage(m: TdApi.Message): TgFile? {
                 thumbMini = if (kind == TgKind.IMAGE || kind == TgKind.VIDEO) d.minithumbnail?.data ?: byteArrayOf() else byteArrayOf(),
                 parts = part?.let { listOf(TgPart(it.index, m.id, d.document.id, d.document.size)) }.orEmpty(),
                 partCount = part?.count ?: 0,
-                partGroup = part?.group.orEmpty()
+                partGroup = part?.group.orEmpty(),
+                encInfo = parseEnc(caption)
             ).let { it.copy(meta = tgMeta(it)) }
         }
         else -> null

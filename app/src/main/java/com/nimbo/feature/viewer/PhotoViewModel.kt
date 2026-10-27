@@ -10,7 +10,7 @@ import com.nimbo.core.di.IoDispatcher
 import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.media.ThumbRepository
-import com.nimbo.data.transfer.FileFetcher
+import com.nimbo.data.transfer.PlainFiles
 import com.nimbo.data.transfer.TransferManager
 import com.nimbo.feature.main.PhotoRoute
 import com.nimbo.ui.common.UiText
@@ -36,7 +36,7 @@ sealed interface PhotoEvent {
 class PhotoViewModel @Inject constructor(
     handle: SavedStateHandle,
     repo: CloudRepository,
-    private val fetcher: FileFetcher,
+    private val plain: PlainFiles,
     private val transfers: TransferManager,
     private val thumbs: ThumbRepository,
     @IoDispatcher private val io: CoroutineDispatcher
@@ -58,12 +58,12 @@ class PhotoViewModel @Inject constructor(
 
     // Original a tamaño visor (2048 px).
     suspend fun full(f: TgFile): ImageBitmap? = withContext(io) {
-        fetcher.awaitFile(f.fileId, 120_000)?.let(thumbs::full)
+        plain.path(f, 120_000)?.let(thumbs::full)
     }
 
     fun share(f: TgFile) {
         viewModelScope.launch {
-            val path = fetcher.awaitFile(f.fileId, 60_000)
+            val path = plain.path(f, 60_000)
             _events.send(if (path == null) PhotoEvent.Message(text(R.string.download_failed)) else PhotoEvent.Share(path, f.name))
         }
     }
