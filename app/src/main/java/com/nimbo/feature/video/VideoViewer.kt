@@ -17,6 +17,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -30,22 +34,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.ClosedCaption
-import androidx.compose.material.icons.filled.ClosedCaptionDisabled
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -84,6 +92,11 @@ import com.nimbo.R
 import com.nimbo.core.util.fmtDur
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.player.PlayerController
+import com.nimbo.player.TrackOption
+import com.nimbo.player.TrackType
+import com.nimbo.ui.common.SectionLabel
+import java.util.Locale
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 
 // ---- Puras (spec 08), testeables ----
@@ -107,6 +120,30 @@ fun pickSubtitle(video: String, names: List<String>, lang: String): String? {
     return subs.firstOrNull { it.lowercase().substringBeforeLast('.') == "$base.${lang.lowercase()}" }
         ?: subs.firstOrNull { it.lowercase().substringBeforeLast('.') == base }
         ?: subs.firstOrNull()
+}
+
+// Arrastre horizontal: el ancho de la pantalla son 90 s (spec 08b).
+fun swipeSeekDelta(dxPx: Float, widthPx: Float): Long =
+    if (widthPx <= 0f) 0L else (dxPx / widthPx * SwipeSpanMs).toLong()
+
+const val SwipeSpanMs = 90_000L
+
+// Pellizco: abrir rellena, cerrar ajusta; poco movimiento no cambia nada.
+fun pinchFill(fill: Boolean, zoom: Float): Boolean = when {
+    zoom > 1.1f -> true
+    zoom < 0.9f -> false
+    else -> fill
+}
+
+// Nombre de pista: el del archivo > idioma ("Español") > fallback; 5.1/7.1
+// al final para distinguir dos audios del mismo idioma.
+fun trackLabel(label: String?, lang: String?, channels: Int, fallback: String, ui: Locale = Locale.getDefault()): String {
+    val name = label?.takeIf { it.isNotBlank() }
+        ?: lang?.takeIf { it.isNotBlank() && it != "und" }?.let { l ->
+            Locale.forLanguageTag(l).getDisplayName(ui).ifEmpty { l }.replaceFirstChar { it.titlecase(ui) }
+        }
+        ?: fallback
+    return if (channels > 2) "$name · ${channels - 1}.1" else name
 }
 
 private tailrec fun Context.activity(): Activity? = when (this) {
@@ -141,7 +178,8 @@ fun VideoViewer(vm: VideoViewModel, onClose: () -> Unit) {
     var seekAcc by remember { mutableIntStateOf(0) }
     var subsOn by remember { mutableStateOf(true) }
     var subsLoaded by remember { mutableStateOf<Long?>(null) }
-    val hasSubs by p.hasSubtitles.collectAsStateWithLifecycle()
+    val tracks by p.tracks.collectAsStateWithLifecycle()
+    var tracksDlg by remember { mutableStateOf(false) }
 
     BackHandler { onClose() }
 
@@ -248,6 +286,8 @@ fun VideoViewer(vm: VideoViewModel, onClose: () -> Unit) {
     var level by remember { mutableFloatStateOf(0f) }
     val brightnessLb = stringResource(R.string.brightness_pct)
     val volumeLb = stringResource(R.string.volume_pct)
+    val fitLb = stringResource(R.string.fit_screen)
+    val fillLb = stringResource(R.string.fill_screen)
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
@@ -265,9 +305,53 @@ fun VideoViewer(vm: VideoViewModel, onClose: () -> Unit) {
             modifier = Modifier.fillMaxSize()
         )
         // Gestos: tap = controles; doble tap = ±10 s; arrastre vertical =
-        // brillo (izquierda) / volumen (derecha).
+        // brillo (izquierda) / volumen (derecha); horizontal = seek;
+        // pellizco = rellenar/ajustar.
         Box(
             Modifier.fillMaxSize()
+                .pointerInput(Unit) {
+                    // Initial: con dos dedos se consume antes que tap/arrastres.
+                    awaitEachGesture {
+                        var zoom = 1f
+                        do {
+                            val e = awaitPointerEvent(PointerEventPass.Initial)
+                            if (e.changes.count { it.pressed } >= 2) {
+                                zoom *= e.calculateZoom()
+                                e.changes.forEach { it.consume() }
+                            }
+                        } while (e.changes.any { it.pressed })
+                        val next = pinchFill(fill, zoom)
+                        if (next != fill) {
+                            fill = next
+                            hint = if (next) fillLb else fitLb
+                            hintTick++
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
+                    var dx = 0f
+                    var from = 0L
+                    var to: Long? = null
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            dx = 0f
+                            from = p.posMs.value
+                        },
+                        onHorizontalDrag = { _, d ->
+                            dx += d
+                            val t = seekTarget(from, p.durMs.value, swipeSeekDelta(dx, size.width.toFloat()))
+                            to = t
+                            val delta = ((t - from) / 1000).toInt()
+                            hint = (if (delta >= 0) "+" else "−") + fmtDur(abs(delta)) + " → " + fmtDur((t / 1000).toInt())
+                            hintTick++
+                        },
+                        onDragEnd = {
+                            to?.let { p.seekTo(it) }
+                            to = null
+                        },
+                        onDragCancel = { to = null }
+                    )
+                }
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { controls = !controls },
@@ -349,12 +433,10 @@ fun VideoViewer(vm: VideoViewModel, onClose: () -> Unit) {
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    if (subsLoaded != null && hasSubs) {
-                        IconButton(onClick = { subsOn = !subsOn; p.showSubtitles(subsOn) }) {
-                            Icon(
-                                if (subsOn) Icons.Filled.ClosedCaption else Icons.Filled.ClosedCaptionDisabled,
-                                stringResource(R.string.subtitles), tint = Color.White
-                            )
+                    // Audio y subtítulos: solo si hay algo que elegir.
+                    if (tracks.count { it.type == TrackType.AUDIO } > 1 || tracks.any { it.type == TrackType.TEXT }) {
+                        IconButton(onClick = { tracksDlg = true }) {
+                            Icon(Icons.Filled.ClosedCaption, stringResource(R.string.tracks_title), tint = Color.White)
                         }
                     }
                     TextButton(onClick = { p.cycleSpeed() }) {
@@ -415,5 +497,59 @@ fun VideoViewer(vm: VideoViewModel, onClose: () -> Unit) {
                 }
             }
         }
+    }
+    if (tracksDlg) TracksDialog(
+        tracks,
+        onPick = { o ->
+            if (o == null) {
+                subsOn = false
+                p.showSubtitles(false)
+            } else {
+                if (o.type == TrackType.TEXT) subsOn = true
+                p.selectTrack(o)
+            }
+            tracksDlg = false
+        },
+        onDismiss = { tracksDlg = false }
+    )
+}
+
+// Pistas del archivo (spec 08b): audio y subtítulos; null = subtítulos off.
+@Composable
+private fun TracksDialog(tracks: List<TrackOption>, onPick: (TrackOption?) -> Unit, onDismiss: () -> Unit) {
+    val audio = tracks.filter { it.type == TrackType.AUDIO }
+    val text = tracks.filter { it.type == TrackType.TEXT }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.tracks_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (audio.size > 1) {
+                    SectionLabel(stringResource(R.string.track_audio))
+                    audio.forEachIndexed { i, o ->
+                        TrackRow(trackLabel(o.label, o.lang, o.channels, stringResource(R.string.track_n, i + 1)), o.selected) { onPick(o) }
+                    }
+                }
+                if (text.isNotEmpty()) {
+                    SectionLabel(stringResource(R.string.subtitles))
+                    TrackRow(stringResource(R.string.track_off), text.none { it.selected }) { onPick(null) }
+                    text.forEachIndexed { i, o ->
+                        TrackRow(trackLabel(o.label, o.lang, 0, stringResource(R.string.track_n, i + 1)), o.selected) { onPick(o) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } }
+    )
+}
+
+@Composable
+private fun TrackRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(label)
     }
 }

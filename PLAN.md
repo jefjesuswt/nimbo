@@ -41,7 +41,9 @@
 
 ## Fase 1: Roadmap (specs 08-14)
 - [x] 08 Reproductor de vídeo propio (pantalla completa, gestos, velocidad, subtítulos .srt/.vtt, PiP)
-- [x] 08 verificar en celu (mp4 grande, gestos, PiP, .srt) · [x] streaming progresivo · [ ] pellizco/seek horizontal
+- [x] 08 verificar en celu (mp4 grande, gestos, PiP, .srt) · [x] streaming progresivo · [x] pellizco/seek horizontal
+- [x] 08b Pistas de audio y subtítulos embebidos (diálogo "Audio y subtítulos")
+- [ ] 08b verificar en celu: pellizco, arrastre horizontal (sin chocar con brillo/volumen), mkv con 2 audios + subtítulos, .srt hermano en el diálogo
 - [x] 09a Continuar donde lo dejaste (posición por archivo, chip "empezar de cero")
 - [x] 09b Deshacer al borrar (5 s) · [ ] papelera 30 días (v2)
 - [x] 09c Deslizar para refrescar
@@ -49,6 +51,7 @@
 - [x] 09a barra de progreso en lista/grid para archivos empezados
 - [x] Verificar 09a-d en celu
 - ~~10 Copia automática de la galería~~ descartada: frágil en segundo plano (sesión TDLib desde WorkManager, restricciones de carga/red). PR #3 cerrado
+- [ ] 10b (idea) Retomar la copia de la galería con UI estilo Google Photos: tarjeta "Copia activada/desactivada", qué carpetas, solo Wi-Fi/cargando, estado y progreso. Resolver antes lo que tumbó la 10
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
 - [x] 13 Archivos > 2 GB (troceo): subir en partes, listar como uno, streaming entre partes, descargar unido, borrar/mover/copiar todas

@@ -248,6 +248,10 @@
         <item quantity="other">%d 件のファイルを削除しました</item>
     </plurals>
     <string name="subtitles">字幕</string>
+    <string name="tracks_title">音声と字幕</string>
+    <string name="track_audio">音声</string>
+    <string name="track_off">オフ</string>
+    <string name="track_n">トラック %1$d</string>
     <string name="fit_screen">画面に合わせる</string>
     <string name="fill_screen">画面いっぱいに表示</string>
     <string name="rotate">回転</string>
