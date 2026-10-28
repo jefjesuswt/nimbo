@@ -22,7 +22,7 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
   - `feature/` — una carpeta por pantalla con su `@HiltViewModel`: `main/` (NavHost + rutas tipadas: Files · Music · Photos · More estilo Mihon, visores encima), `auth/`, `cloud/`, `transfer/`, `player/`, `viewer/`, `video/`, `reader/`, `settings/`.
   - `ui/common/`, `ui/theme/` — componentes y tema compartidos.
 - Dynamic color: `dynamicLightColorScheme()` / `dynamicDarkColorScheme()` en Android 12+, fallback con seed.
-- Logo: disco con agujero de nube (`docs/logo.svg`), blanco y negro. Icono adaptativo en `res/drawable/ic_launcher_*`; la capa `monochrome` (Android 13+) la tiñe el launcher con Material You si el usuario activa iconos temáticos. Solo cuenta el alfa: el agujero va con `evenOdd`, nunca pintado encima.
+- Logo: disco negro con nube blanca, sobre fondo transparente (`docs/logo.svg`, como Yasui). Icono adaptativo en `res/drawable/ic_launcher_*`; la capa `monochrome` (Android 13+) la tiñe el launcher con Material You si el usuario activa iconos temáticos. Ahí solo cuenta el alfa: la nube va hueca con `evenOdd`, nunca pintada encima.
 
 ## Reglas
 - Solo componentes M3 estándar. Sin colores hardcodeados: `MaterialTheme.colorScheme`.

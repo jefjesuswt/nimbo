@@ -25,3 +25,8 @@ Thumbs.db
 
 # Worktrees de Claude Code
 .claude/
+
+# Videos/partes que se dejan en la raíz para procesar
+*.mp4
+*.mkv
+*.[0-9][0-9][0-9]
