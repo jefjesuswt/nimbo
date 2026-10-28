@@ -10,6 +10,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - New icon: black disc with a white cloud on a transparent background.
 
 ### Fixed
+- While a big file was uploading in parts, it showed up as "Incomplete" after the first part, which looked like an error. It now appears once the last part is up.
 - The upload notification no longer updates dozens of times per second (Android was dropping the updates).
 
 ## [1.3.0] - 2026-10-28

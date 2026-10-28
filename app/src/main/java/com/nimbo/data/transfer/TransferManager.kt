@@ -418,7 +418,9 @@ class TransferManager @Inject constructor(
                             items = it.items.mapIndexed { j, b -> if (j == i) b.copy(state = if (ok) ItemState.DONE else ItemState.FAILED) else b }
                         )
                     }
-                    repo.refresh()
+                    // Troceado: sale en la lista al subir la última parte;
+                    // antes se veía "Incompleto" y parecía un error.
+                    if (job.part == null || job.part.index == job.part.count) repo.refresh()
                 }
                 bad = failed
                 if (failed.isNotEmpty()) _failed.value = failed
