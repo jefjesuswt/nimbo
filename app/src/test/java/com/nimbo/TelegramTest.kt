@@ -10,6 +10,9 @@ import com.nimbo.feature.auth.defaultCountry
 import com.nimbo.feature.auth.fullPhone
 import com.nimbo.feature.auth.isCodeOk
 import com.nimbo.feature.auth.isPhoneOk
+import com.nimbo.feature.video.pinchFill
+import com.nimbo.feature.video.swipeSeekDelta
+import com.nimbo.feature.video.trackLabel
 import com.nimbo.player.RepeatMode
 import com.nimbo.player.artGlyphFor
 import com.nimbo.player.nextRepeat
@@ -18,6 +21,7 @@ import com.nimbo.player.nextTimer
 import com.nimbo.player.resumeFrom
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.util.Locale
 
 class TelegramTest {
     private val mock = listOf(
@@ -103,6 +107,22 @@ class TelegramTest {
         assertEquals(0.75f, com.nimbo.feature.video.dragLevel(0.5f, -250f, 1000f), 0.001f)
         assertEquals(1f, com.nimbo.feature.video.dragLevel(0.9f, -500f, 1000f), 0.001f)
         assertEquals(0f, com.nimbo.feature.video.dragLevel(0.1f, 500f, 1000f), 0.001f)
+    }
+
+    @Test fun videoSwipeAndPinch() {
+        assertEquals(45_000L, swipeSeekDelta(500f, 1000f))
+        assertEquals(-90_000L, swipeSeekDelta(-1000f, 1000f))
+        assertEquals(0L, swipeSeekDelta(300f, 0f))
+        assertEquals(true, pinchFill(false, 1.3f))
+        assertEquals(false, pinchFill(true, 0.7f))
+        assertEquals(true, pinchFill(true, 1.05f))
+    }
+
+    @Test fun trackNames() {
+        val es = Locale.forLanguageTag("es")
+        assertEquals("Director", trackLabel("Director", "en", 2, "Pista 1", es))
+        assertEquals("Inglés · 5.1", trackLabel(null, "en", 6, "Pista 1", es))
+        assertEquals("Pista 2", trackLabel(" ", "und", 2, "Pista 2", es))
     }
 
     @Test fun subtitlePick() {

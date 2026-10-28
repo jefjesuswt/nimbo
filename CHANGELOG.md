@@ -6,6 +6,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Video player: pinch to fill or fit the screen, and swipe left or right to seek (the screen width is 90 seconds).
+- Video player: "Audio & subtitles" lets you pick the audio language and the subtitles embedded in the file (MKV, MP4), besides a side `.srt`.
+
 ## [1.3.1] - 2026-10-28
 
 ### Changed

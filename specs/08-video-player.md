@@ -54,3 +54,14 @@ controles propios). Spec: visor de vídeo dedicado, sobre el mismo
   streaming progresivo todavía.
 - Vídeo horizontal gira a horizontal solo; botón de rotar para cambiar.
 - Subtítulos: solo `.srt` / `.vtt` hermanos (no embebidos).
+
+## 08b (implementado)
+
+- Pellizco: abrir = rellenar, cerrar = ajustar (umbral ±10 %). Se
+  consume en el pase Initial para que no dispare tap ni arrastres.
+- Arrastre horizontal = seek: ancho de pantalla = 90 s, indicador
+  "+1:30 → 12:45", salta al soltar.
+- "Audio y subtítulos" (sustituye al botón CC): pistas de audio (si hay
+  más de una) y de texto que expone Media3, embebidas (mkv/mp4) y el
+  `.srt` hermano. Nombre: label del archivo > idioma > "Pista n", con
+  5.1/7.1. Subtítulos "Desactivados" apaga el tipo texto.

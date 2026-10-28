@@ -15,6 +15,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -107,6 +109,9 @@ class PlayerController @Inject constructor(
     // Subtítulo lateral cargado en el item actual (spec 08).
     private val _hasSubtitles = MutableStateFlow(false)
     val hasSubtitles: StateFlow<Boolean> = _hasSubtitles
+    // Pistas de audio y texto del item actual (embebidas + subtítulo lateral).
+    private val _tracks = MutableStateFlow<List<TrackOption>>(emptyList())
+    val tracks: StateFlow<List<TrackOption>> = _tracks
 
     // Descarga en curso del vídeo en streaming: se corta al cambiar o parar.
     private var streamingIds = emptyList<Int>()
@@ -152,6 +157,10 @@ class PlayerController @Inject constructor(
                 _buffering.value = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_READY) _durMs.value = p.duration.coerceAtLeast(0L)
                 if (state == Player.STATE_ENDED) onTrackEnded()
+            }
+
+            override fun onTracksChanged(t: Tracks) {
+                _tracks.value = trackOptions(t)
             }
 
             override fun onPlayerError(err: PlaybackException) {
@@ -332,6 +341,17 @@ class PlayerController @Inject constructor(
         _hasSubtitles.value = true
     }
 
+    // Fija una pista de audio o texto (spec 08b); el texto se enciende.
+    fun selectTrack(o: TrackOption) {
+        val p = player ?: return
+        val g = p.currentTracks.groups.getOrNull(o.group) ?: return
+        val type = if (o.type == TrackType.AUDIO) C.TRACK_TYPE_AUDIO else C.TRACK_TYPE_TEXT
+        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(type, false)
+            .setOverrideForType(TrackSelectionOverride(g.mediaTrackGroup, o.index))
+            .build()
+    }
+
     fun showSubtitles(on: Boolean) {
         val p = player ?: return
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
@@ -440,5 +460,25 @@ class PlayerController @Inject constructor(
 
     private companion object {
         const val CACHE_DIR = "tg-player"
+    }
+}
+
+enum class TrackType { AUDIO, TEXT }
+
+// Pista elegible: grupo + índice en Tracks; label/idioma tal cual del archivo.
+data class TrackOption(
+    val type: TrackType, val group: Int, val index: Int,
+    val label: String?, val lang: String?, val channels: Int, val selected: Boolean
+)
+
+private fun trackOptions(t: Tracks): List<TrackOption> = t.groups.flatMapIndexed { gi, g ->
+    val type = when (g.type) {
+        C.TRACK_TYPE_AUDIO -> TrackType.AUDIO
+        C.TRACK_TYPE_TEXT -> TrackType.TEXT
+        else -> return@flatMapIndexed emptyList()
+    }
+    (0 until g.length).filter { g.isTrackSupported(it) }.map { i ->
+        val f = g.getTrackFormat(i)
+        TrackOption(type, gi, i, f.label, f.language, f.channelCount, g.isTrackSelected(i))
     }
 }
