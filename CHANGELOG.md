@@ -6,6 +6,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-28
+
 ### Added
 - Optional encryption (More › Encryption). Set a password and new uploads are encrypted on the phone before they reach Telegram: names, sizes, audio titles and content are hidden, only the folder stays visible. Nimbo shows them as normal files, streams encrypted videos with normal seeking and opens or downloads the rest. The key is stored in your Saved Messages wrapped with your password, so another phone can unlock it. If you forget the password, encrypted files cannot be recovered.
 - More › Encryption › Encrypt existing files: re-uploads files that are not encrypted yet, one at a time, and deletes each original only once its encrypted copy is in the list.
@@ -78,7 +80,8 @@ First public release.
 - Your `api_id` / `api_hash` are typed in the app and stored encrypted on the phone only; Nimbo ships no keys.
 - The Telegram session database is encrypted and excluded from backups.
 
-[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/jefjesuswt/nimbo/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jefjesuswt/nimbo/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jefjesuswt/nimbo/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/jefjesuswt/nimbo/releases/tag/v1.0.0
