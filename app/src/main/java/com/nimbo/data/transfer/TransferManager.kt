@@ -333,9 +333,13 @@ class TransferManager @Inject constructor(
         coroutineContext[Job]?.let { batchJobs[id] = it }
         UploadService.ensure(ctx)
         return try {
+            var pct = -1
             plain.path(f) { p ->
                 updBatch(id) { it.copy(done = (p * f.sizeBytes).toLong(), currentFrac = p) }
-                UploadService.progress(ctx, label, p, f.name, down = true)
+                if ((p * 100).toInt() != pct) {
+                    pct = (p * 100).toInt()
+                    UploadService.progress(ctx, label, p, f.name, down = true)
+                }
             }
         } finally {
             batchJobs.remove(id)
@@ -393,10 +397,17 @@ class TransferManager @Inject constructor(
                         )
                     }
                     val base = done
+                    // Notificación solo al cambiar el %: Android descarta
+                    // más de ~5 por segundo.
+                    var pct = -1
                     val report: (Float) -> Unit = { frac ->
                         val now = base + (frac * job.size).toLong()
                         updBatch(id) { it.copy(done = now, currentFrac = frac) }
-                        UploadService.progress(ctx, label, (now.toFloat() / total).coerceIn(0f, 1f), job.name)
+                        val all = (now.toFloat() / total).coerceIn(0f, 1f)
+                        if ((all * 100).toInt() != pct) {
+                            pct = (all * 100).toInt()
+                            UploadService.progress(ctx, label, all, job.name)
+                        }
                     }
                     val ok = uploadOne(job, report, sent)
                     if (!ok) failed.add(job.name)
@@ -407,7 +418,9 @@ class TransferManager @Inject constructor(
                             items = it.items.mapIndexed { j, b -> if (j == i) b.copy(state = if (ok) ItemState.DONE else ItemState.FAILED) else b }
                         )
                     }
-                    repo.refresh()
+                    // Troceado: sale en la lista al subir la última parte;
+                    // antes se veía "Incompleto" y parecía un error.
+                    if (job.part == null || job.part.index == job.part.count) repo.refresh()
                 }
                 bad = failed
                 if (failed.isNotEmpty()) _failed.value = failed
