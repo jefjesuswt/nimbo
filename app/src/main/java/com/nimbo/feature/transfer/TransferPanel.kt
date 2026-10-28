@@ -65,6 +65,7 @@ fun batchLabel(l: BatchLabel): String = when (l) {
     is BatchLabel.Name -> l.text
     is BatchLabel.Files -> pluralStringResource(R.plurals.files_count, l.count, l.count)
     BatchLabel.Root -> stringResource(R.string.root)
+    is BatchLabel.Encrypting -> stringResource(R.string.enc_migrating, l.n, l.total)
 }
 
 // Lotes arriba de la lista: el que corre con %, los en cola debajo (alto

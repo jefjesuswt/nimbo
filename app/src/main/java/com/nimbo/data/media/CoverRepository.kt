@@ -7,6 +7,7 @@ import com.nimbo.core.di.IoDispatcher
 import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.cloud.encrypted
 import com.nimbo.data.transfer.FileFetcher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.ConcurrentHashMap
@@ -44,7 +45,7 @@ class CoverRepository @Inject constructor(
     fun file(hash: String): java.io.File = java.io.File(dir, "$hash.jpg")
 
     fun fetch(f: TgFile) {
-        if (f.kind != TgKind.AUDIO || f.fileId == 0 || f.messageId == 0L) return
+        if (f.kind != TgKind.AUDIO || f.fileId == 0 || f.messageId == 0L || f.encrypted()) return
         // Hash conocido (índice): solo asegura memoria, cero descargas.
         if (f.coverHash.isNotEmpty()) {
             ensureMem(f.coverHash)

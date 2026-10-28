@@ -23,6 +23,7 @@ import com.nimbo.data.cloud.PartLimitPremium
 import com.nimbo.data.cloud.PartTag
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgGenTag
+import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.TgTransTag
 import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.isAudioName
@@ -36,8 +37,20 @@ import com.nimbo.data.cloud.tagCoverLink
 import com.nimbo.data.cloud.tagCoverName
 import com.nimbo.data.cloud.tagFolder
 import com.nimbo.data.cloud.tagMeta
+import com.nimbo.data.cloud.tagEnc
 import com.nimbo.data.cloud.tagPart
+import com.nimbo.data.cloud.encrypted
+import com.nimbo.data.crypto.EncInfo
+import com.nimbo.data.crypto.KeyRing
+import com.nimbo.data.crypto.blockOf
+import com.nimbo.data.crypto.cipherSize
+import com.nimbo.data.crypto.encryptRange
+import com.nimbo.data.crypto.newHeader
+import com.nimbo.data.crypto.sealInfo
+import com.nimbo.data.crypto.skipFully
+import com.nimbo.core.prefs.AppPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
@@ -54,6 +67,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -70,6 +84,7 @@ sealed interface BatchLabel {
     data class Name(val text: String) : BatchLabel
     data class Files(val count: Int) : BatchLabel
     data object Root : BatchLabel
+    data class Encrypting(val n: Int, val total: Int) : BatchLabel
 }
 
 enum class ItemState { PENDING, RUNNING, DONE, FAILED }
@@ -98,8 +113,14 @@ data class UpJob(
     val uri: Uri, val folder: String, val name: String, val size: Long,
     val cover: Boolean = false, val data: ByteArray? = null, val extraTag: String = "",
     // Parte de un archivo troceado (spec 13): bytes [offset, offset+size).
-    val part: PartTag? = null, val offset: Long = 0
+    val part: PartTag? = null, val offset: Long = 0,
+    // Cifrado (spec 12): offset/size en bytes cifrados.
+    val enc: EncJob? = null,
+    // #tgmeta ya conocido (cifrar lo subido: conserva títulos editados).
+    val meta: String? = null
 )
+
+class EncJob(val key: ByteArray, val header: ByteArray, val plainSize: Long, val info: String)
 
 // Subidas y descargas por lotes, en serie (un Mutex): conflictos, cancelar
 // (borra lo parcial), notificación en primer plano.
@@ -108,7 +129,9 @@ class TransferManager @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val client: TdClient,
     private val repo: CloudRepository,
-    private val fetcher: FileFetcher,
+    private val plain: PlainFiles,
+    private val keys: KeyRing,
+    private val prefs: AppPrefs,
     @ApplicationScope private val scope: CoroutineScope,
     @IoDispatcher private val io: CoroutineDispatcher
 ) {
@@ -238,9 +261,87 @@ class TransferManager @Inject constructor(
                 runCatching { repo.deleteMessages(listOf(old.messageId)) }
             }
             val ok = runCatching {
-                runBatch(BatchLabel.Name(name), listOf(UpJob(Uri.EMPTY, orig.folder, name, bytes.size.toLong(), false, bytes, TgTransTag)))
+                // Traducción de un cifrado: cifrada también (es su contenido).
+                runBatch(BatchLabel.Name(name), listOf(UpJob(Uri.EMPTY, orig.folder, name, bytes.size.toLong(), false, bytes, TgTransTag)), orig.encrypted())
             }.getOrDefault(false)
             withContext(Dispatchers.Main) { done(ok) }
+        }
+    }
+
+    // Cifrar lo ya subido (spec 12c), de a uno: bajar en claro, subir cifrado
+    // y borrar el original solo cuando la copia cifrada ya sale en la lista
+    // con su nombre y tamaño. Cancelar la card para todo; lo que falte sigue
+    // en claro. ponytail: las covers generadas (#tggen) se quedan en claro.
+    private val _encrypting = MutableStateFlow(false)
+    val encrypting: StateFlow<Boolean> = _encrypting
+
+    fun encryptExisting() {
+        if (keys.key.value == null || !_encrypting.compareAndSet(false, true)) return
+        scope.launch(io) {
+            try {
+                val todo = toEncrypt(repo.files.value)
+                val failed = mutableListOf<String>()
+                todo.forEachIndexed { i, f ->
+                    // Bloqueado a mitad: no hay con qué cifrar.
+                    val ok = keys.key.value != null && encryptOne(f, BatchLabel.Encrypting(i + 1, todo.size))
+                    if (!ok) failed.add(f.name)
+                }
+                if (failed.isNotEmpty()) _failed.value = failed
+            } finally {
+                _encrypting.value = false
+            }
+        }
+    }
+
+    private suspend fun encryptOne(f: TgFile, label: BatchLabel): Boolean {
+        val path = fetchPlain(f, label) ?: return false
+        val file = File(path)
+        try {
+            if (file.length() != f.sizeBytes) return false
+            val meta = when {
+                f.kind != TgKind.AUDIO -> ""
+                f.title.isEmpty() && f.artist.isEmpty() && f.durSec <= 0 -> null
+                else -> tagMeta("", f.title, f.artist, f.durSec)
+            }
+            val job = UpJob(Uri.fromFile(file), f.folder, f.name, f.sizeBytes, meta = meta)
+            if (!runBatch(label, listOf(job), forceEnc = true)) return false
+            // El refresh del lote es asíncrono: se reintenta un par de veces.
+            repeat(3) {
+                repo.reload()
+                val there = repo.files.value.any {
+                    it.encrypted() && !it.locked && it.folder == f.folder && it.name == f.name && it.sizeBytes == f.sizeBytes
+                }
+                if (there) return repo.deleteMessages(f.messageIds())
+                delay(2_000)
+            }
+            return false
+        } finally {
+            // Copia en claro fuera del teléfono: la de TDLib o la unida.
+            withContext(NonCancellable) { if (f.isSplit()) file.delete() else client.send(TdApi.DeleteFile(f.fileId)) }
+        }
+    }
+
+    // Bajada con card propia (el lote de subida aún no existe).
+    private suspend fun fetchPlain(f: TgFile, label: BatchLabel): String? {
+        val id = ids.incrementAndGet()
+        _batches.update {
+            it + BatchUi(
+                id, label, f.sizeBytes.coerceAtLeast(1L), 0, f.name, 0, 1, true, down = true,
+                items = listOf(BatchItem(f.name, f.sizeBytes, ItemState.RUNNING)), startMs = System.currentTimeMillis()
+            )
+        }
+        coroutineContext[Job]?.let { batchJobs[id] = it }
+        UploadService.ensure(ctx)
+        return try {
+            plain.path(f) { p ->
+                updBatch(id) { it.copy(done = (p * f.sizeBytes).toLong(), currentFrac = p) }
+                UploadService.progress(ctx, label, p, f.name, down = true)
+            }
+        } finally {
+            batchJobs.remove(id)
+            cancelFlags.remove(id)
+            dropBatch(id)
+            if (_batches.value.none { it.running }) UploadService.finish(ctx)
         }
     }
 
@@ -259,8 +360,13 @@ class TransferManager @Inject constructor(
     }
 
     // Devuelve true si todo el lote subió.
-    private suspend fun runBatch(label: BatchLabel, input: List<UpJob>): Boolean {
-        val jobs = splitJobs(input)
+    private suspend fun runBatch(label: BatchLabel, input: List<UpJob>, forceEnc: Boolean = false): Boolean {
+        val jobs = splitJobs(
+            encryptJobs(input, forceEnc) ?: run {
+                _failed.value = input.map { it.name }
+                return false
+            }
+        )
         val id = ids.incrementAndGet()
         val total = jobs.sumOf { it.size }.coerceAtLeast(1L)
         _batches.update {
@@ -324,6 +430,25 @@ class TransferManager @Inject constructor(
         return bad.isEmpty()
     }
 
+    // Cifrado (spec 12): nombre opaco, tamaño cifrado y la info real en
+    // #enc. Las covers generadas no se suben (serían arte en claro); un
+    // cover.jpg viaja como imagen cifrada más. Activo pero sin clave → null:
+    // nada se sube en claro por accidente.
+    private fun encryptJobs(jobs: List<UpJob>, force: Boolean): List<UpJob>? {
+        if (!force && !prefs.encryptUploads) return jobs
+        val key = keys.key.value ?: return null
+        return jobs.filterNot { it.cover && it.data != null }.map { j ->
+            val header = newHeader()
+            val meta = j.meta ?: if (j.data != null) "" else
+                audioMeta(j.name) { it.setDataSource(ctx, j.uri) }?.let { (t, a, d) -> tagMeta("", t, a, d) }.orEmpty()
+            j.copy(
+                name = UUID.randomUUID().toString().take(12) + ".nimbo",
+                size = cipherSize(j.size, blockOf(header)), cover = false,
+                enc = EncJob(key, header, j.size, sealInfo(key, EncInfo(j.name, j.size, meta)))
+            )
+        }
+    }
+
     // Más grande que el límite de Telegram → partes .001, .002… (spec 13).
     // Cada parte es un item del lote: cancelar borra las ya subidas.
     private suspend fun splitJobs(jobs: List<UpJob>): List<UpJob> {
@@ -341,18 +466,29 @@ class TransferManager @Inject constructor(
     }
 
     // subdir único (colisiones fuera, nombre intacto).
-    private fun stageFor(name: String): java.io.File {
+    private fun stageFor(name: String): File {
         val safe = name.replace('/', '_').takeLast(120).ifEmpty { "file" }
-        val dir = java.io.File(java.io.File(ctx.cacheDir, "tg-upload"), ids.incrementAndGet().toString() + "-" + System.nanoTime())
+        val dir = File(File(ctx.cacheDir, "tg-upload"), ids.incrementAndGet().toString() + "-" + System.nanoTime())
             .apply { mkdirs() }
-        return java.io.File(dir, safe)
+        return File(dir, safe)
     }
 
-    private fun stageJob(job: UpJob): java.io.File? {
+    private fun stageJob(job: UpJob): File? {
         val stage = stageFor(job.name)
         return try {
             // Bytes directos (cover embebida, traducción guardada): a staging
             // con su nombre real (el servidor toma el filename del path).
+            job.enc?.let { e ->
+                val input = job.data?.inputStream() ?: ctx.contentResolver.openInputStream(job.uri) ?: return null
+                input.use { stage.outputStream().use { out -> encryptRange(e.key, e.header, it, e.plainSize, out, job.offset, job.size) } }
+                // Cifrado corto = no se podría descifrar: no se envía.
+                if (stage.length() != job.size) {
+                    Log.w(TAG, "STAGE-CIFRADO-CORTO ${stage.length()}/${job.size}")
+                    runCatching { stage.delete() }
+                    return null
+                }
+                return stage
+            }
             if (job.data != null) {
                 stage.writeBytes(job.data)
                 return stage
@@ -396,9 +532,13 @@ class TransferManager @Inject constructor(
             } else {
                 if (job.extraTag.isNotEmpty()) caption = "$caption ${job.extraTag}"
                 job.part?.let { caption = tagPart(caption, it) }
+                // Cifrado: #tgmeta viaja dentro de #enc, nada en claro.
+                job.enc?.let { caption = tagEnc(caption, it.info) }
                 // Docs no traen metadatos de Telegram: se extraen aquí y viajan
                 // en el caption (#tgmeta). Solo audio (barato, local).
-                audioMeta(stage, job.name)?.let { (t, a, d) -> caption = tagMeta(caption, t, a, d) }
+                if (job.enc == null) {
+                    audioMeta(job.name) { it.setDataSource(stage.absolutePath) }?.let { (t, a, d) -> caption = tagMeta(caption, t, a, d) }
+                }
             }
             val content = TdApi.InputMessageDocument(
                 TdApi.InputFileLocal(stage.absolutePath), null, true,
@@ -513,33 +653,14 @@ class TransferManager @Inject constructor(
         }
     }
 
-    private suspend fun downloadOne(f: TgFile, sub: String): Boolean = runCatching {
+    // Partes y cifrados se unen/descifran directo al archivo de Downloads.
+    private suspend fun downloadOne(f: TgFile, sub: String): Boolean {
         // ponytail: Android 8-9 no tiene MediaStore.Downloads (y pediría
         // permiso de almacenamiento): sin descarga a Downloads ahí.
-        if (Build.VERSION.SDK_INT < 29 || f.incomplete()) return@runCatching false
-        if (f.isSplit()) return@runCatching downloadJoined(f, sub)
-        val path = fetcher.awaitFile(f.fileId) ?: return@runCatching false
-        val uri = insertDownload(f.name, sub) ?: return@runCatching false
-        ctx.contentResolver.openOutputStream(uri)?.use { out ->
-            java.io.File(path).inputStream().use { it.copyTo(out) }
-        } ?: return@runCatching false
-        true
-    }.getOrDefault(false)
-
-    // Partes una tras otra al mismo archivo de Downloads; cada parte sale
-    // de la caché de TDLib al copiarla (si no, ocupa el doble).
-    @RequiresApi(29)
-    private suspend fun downloadJoined(f: TgFile, sub: String): Boolean {
+        if (Build.VERSION.SDK_INT < 29 || f.incomplete() || f.locked) return false
         val uri = insertDownload(f.name, sub) ?: return false
         val ok = runCatching {
-            ctx.contentResolver.openOutputStream(uri)?.use { out ->
-                f.parts.all { p ->
-                    val path = fetcher.awaitFile(p.fileId) ?: return@all false
-                    java.io.File(path).inputStream().use { it.copyTo(out) }
-                    client.send(TdApi.DeleteFile(p.fileId))
-                    true
-                }
-            } ?: false
+            ctx.contentResolver.openOutputStream(uri)?.use { plain.write(f, it) } ?: false
         }.getOrDefault(false)
         if (!ok) runCatching { ctx.contentResolver.delete(uri, null, null) }
         return ok
@@ -561,23 +682,16 @@ class TransferManager @Inject constructor(
     }
 }
 
-// Copia [offset, offset+len) del stream. skip() puede quedarse corto: se
-// descarta leyendo.
+// Lo que sigue en claro y se puede cifrar (entero, con contenido).
+fun toEncrypt(files: List<TgFile>): List<TgFile> =
+    files.filter { !it.encrypted() && !it.incomplete() && it.fileId != 0 }
+
+// Copia [offset, offset+len) del stream.
 // ponytail: en SAF las partes altas leen y tiran lo previo; FileChannel
 // con position() si tarda demasiado.
 fun copyRange(input: InputStream, out: OutputStream, offset: Long, len: Long) {
     val buf = ByteArray(256 * 1024)
-    var skip = offset
-    while (skip > 0) {
-        val n = input.skip(skip)
-        if (n > 0) {
-            skip -= n
-            continue
-        }
-        val r = input.read(buf, 0, minOf(buf.size.toLong(), skip).toInt())
-        if (r < 0) return
-        skip -= r
-    }
+    skipFully(input, offset)
     var left = len
     while (left > 0) {
         val r = input.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
@@ -589,12 +703,13 @@ fun copyRange(input: InputStream, out: OutputStream, offset: Long, len: Long) {
 
 // Metadatos audio del archivo local (MediaMetadataRetriever plataforma).
 // Null si no es audio o falla. Triple(título, artista, durSec).
-fun audioMeta(stage: java.io.File, name: String): Triple<String, String, Int>? {
+// source: del stage (path) o del uri original (cifrados: el stage no es audio).
+fun audioMeta(name: String, source: (android.media.MediaMetadataRetriever) -> Unit): Triple<String, String, Int>? {
     if (!isAudioName(name)) return null
     return runCatching {
         val r = android.media.MediaMetadataRetriever()
         try {
-            r.setDataSource(stage.absolutePath)
+            source(r)
             val title = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE).orEmpty()
             val artist = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST).orEmpty()
             val dur = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)

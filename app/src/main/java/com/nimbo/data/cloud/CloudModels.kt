@@ -34,7 +34,11 @@ data class TgFile(
     // Troceo (spec 13): partes presentes en orden; vacío = archivo normal.
     val parts: List<TgPart> = emptyList(),
     val partCount: Int = 0,
-    val partGroup: String = ""
+    val partGroup: String = "",
+    // Cifrado (spec 12): info cifrada del caption; vacío = en claro.
+    // locked = no hay clave en este teléfono (nombre opaco).
+    val encInfo: String = "",
+    val locked: Boolean = false
 ) {
     // Igualdad por todos los campos (ByteArray por contenido). Antes solo
     // ids+nombre: renombrar el título o deducir la cover daba una lista
@@ -47,7 +51,7 @@ data class TgFile(
             artist == other.artist && thumbFileId == other.thumbFileId &&
             thumbMini.contentEquals(other.thumbMini) && coverHash == other.coverHash &&
             remoteId == other.remoteId && parts == other.parts && partCount == other.partCount &&
-            partGroup == other.partGroup
+            partGroup == other.partGroup && encInfo == other.encInfo && locked == other.locked
 
     override fun hashCode(): Int = 31 * id.hashCode() + messageId.hashCode()
 }
@@ -57,6 +61,8 @@ data class TgPart(val index: Int, val messageId: Long, val fileId: Int, val size
 fun TgFile.isSplit(): Boolean = partCount > 0
 
 fun TgFile.incomplete(): Boolean = parts.size < partCount
+
+fun TgFile.encrypted(): Boolean = encInfo.isNotEmpty()
 
 // Mensajes que forman el archivo (borrar/mover actúan sobre todos).
 fun TgFile.messageIds(): List<Long> = if (parts.isEmpty()) listOf(messageId) else parts.map { it.messageId }

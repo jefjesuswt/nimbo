@@ -13,12 +13,11 @@ import com.nimbo.data.cloud.PlaybackPositions
 import com.nimbo.data.cloud.SortKey
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
-import com.nimbo.data.cloud.isSplit
 import com.nimbo.data.cloud.isTextFile
 import com.nimbo.data.cloud.normalizePath
 import com.nimbo.data.cloud.parentOf
 import com.nimbo.data.cloud.showTitle
-import com.nimbo.data.transfer.FileFetcher
+import com.nimbo.data.transfer.PlainFiles
 import com.nimbo.data.transfer.TransferManager
 import com.nimbo.player.PlayerController
 import com.nimbo.ui.common.Snack
@@ -72,7 +71,7 @@ class CloudViewModel @AssistedInject constructor(
     private val repo: CloudRepository,
     private val ops: CloudOps,
     private val transfers: TransferManager,
-    private val fetcher: FileFetcher,
+    private val plain: PlainFiles,
     private val player: PlayerController,
     private val prefs: AppPrefs,
     private val clipboard: CloudClipboard,
@@ -165,6 +164,7 @@ class CloudViewModel @AssistedInject constructor(
 
     // Tocar / botón play: audio suena, vídeo y texto abren su visor.
     fun play(f: TgFile) = when {
+        f.locked -> say(text(R.string.enc_locked_hint))
         f.kind == TgKind.VIDEO -> emit(CloudEvent.OpenVideo(f.messageId))
         f.kind == TgKind.AUDIO -> {
             val q = playQueue(tab, repo.files.value, _browse.value.album, f)
@@ -185,11 +185,10 @@ class CloudViewModel @AssistedInject constructor(
             }
             f.kind == TgKind.DOC && isTextFile(f.name) -> emit(CloudEvent.OpenReader(f.messageId))
             f.kind == TgKind.VIDEO -> emit(CloudEvent.OpenVideo(f.messageId))
-            // ponytail: troceado no-vídeo no se abre (sería solo la parte 1);
-            // unir en caché para el visor si hace falta.
-            f.isSplit() -> say(text(R.string.split_download_hint, f.showTitle()))
+            f.locked -> say(text(R.string.enc_locked_hint))
+            // Troceados y cifrados: PlainFiles los une/descifra en caché.
             else -> viewModelScope.launch {
-                val path = fetcher.download(f.fileId)
+                val path = plain.path(f)
                 val mime = when (f.kind) {
                     TgKind.IMAGE -> "image/*"
                     TgKind.VIDEO -> "video/*"

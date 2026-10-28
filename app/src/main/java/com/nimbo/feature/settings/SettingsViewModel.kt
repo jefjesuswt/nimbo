@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.nimbo.R
 import com.nimbo.core.prefs.AppPrefs
 import com.nimbo.core.prefs.Appearance
@@ -12,12 +13,22 @@ import com.nimbo.core.tdlib.ApiKeys
 import com.nimbo.core.tdlib.TgAuthState
 import com.nimbo.core.tdlib.parseApiId
 import com.nimbo.data.auth.AuthRepository
+import com.nimbo.data.cloud.CloudRepository
+import com.nimbo.data.crypto.EncState
+import com.nimbo.data.crypto.Encryption
+import com.nimbo.data.crypto.SetupResult
+import com.nimbo.data.transfer.TransferManager
+import com.nimbo.data.transfer.toEncrypt
 import com.nimbo.data.translate.Translator
 import com.nimbo.data.translate.TranslatorRegistry
 import com.nimbo.ui.theme.Seed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 fun themeModeLabel(mode: ThemeMode): Int = when (mode) {
     ThemeMode.LIGHT -> R.string.theme_light
@@ -32,7 +43,10 @@ fun seedsVisible(dynamic: Boolean): Boolean = !dynamic
 class SettingsViewModel @Inject constructor(
     private val prefs: AppPrefs,
     private val translators: TranslatorRegistry,
-    private val auth: AuthRepository
+    private val auth: AuthRepository,
+    private val encryption: Encryption,
+    repo: CloudRepository,
+    private val transfers: TransferManager
 ) : ViewModel() {
     val appearance: StateFlow<Appearance> = prefs.appearance
     fun setTheme(m: ThemeMode) = prefs.setTheme(m)
@@ -70,4 +84,70 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun forget() = auth.forget()
+
+    // Cifrado (spec 12): configurar, desbloquear, bloquear, cifrar subidas.
+    val encState: StateFlow<EncState> = encryption.state
+    var encryptUploads by mutableStateOf(prefs.encryptUploads)
+        private set
+    var encDialog by mutableStateOf<EncDialog?>(null)
+        private set
+    var encBusy by mutableStateOf(false)
+        private set
+    var encError by mutableStateOf<Int?>(null)
+        private set
+
+    fun encryptUploads(on: Boolean) {
+        encryptUploads = on
+        prefs.encryptUploads = on
+    }
+
+    fun openEncDialog(d: EncDialog?) {
+        encDialog = d
+        encError = null
+    }
+
+    fun submitPassword(pw: String, repeat: String) {
+        val d = encDialog ?: return
+        if (d == EncDialog.SETUP) {
+            encError = when {
+                pw.length < MIN_PASSWORD -> R.string.enc_too_short
+                pw != repeat -> R.string.enc_mismatch
+                else -> null
+            }
+            if (encError != null) return
+        }
+        encBusy = true
+        viewModelScope.launch {
+            encError = if (d == EncDialog.SETUP) when (encryption.setup(pw.toCharArray())) {
+                SetupResult.OK -> null
+                SetupResult.EXISTS -> R.string.enc_exists
+                SetupResult.OFFLINE -> R.string.enc_offline
+                SetupResult.FAILED -> R.string.enc_failed
+            } else if (encryption.unlock(pw.toCharArray())) null else R.string.enc_wrong
+            encBusy = false
+            if (encError == null) {
+                encDialog = null
+                encryptUploads = prefs.encryptUploads
+            }
+        }
+    }
+
+    fun lockEnc() = encryption.lock()
+
+    // Cifrar lo ya subido (12c): cuántos quedan en claro + confirmación.
+    val plainCount: StateFlow<Int> = repo.files.map { toEncrypt(it).size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val encrypting: StateFlow<Boolean> = transfers.encrypting
+    var encConfirm by mutableStateOf(false)
+
+    fun encryptExisting() {
+        encConfirm = false
+        transfers.encryptExisting()
+    }
+
+    private companion object {
+        const val MIN_PASSWORD = 8
+    }
 }
+
+enum class EncDialog { SETUP, UNLOCK }

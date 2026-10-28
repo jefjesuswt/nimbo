@@ -4,6 +4,11 @@ import com.nimbo.core.tdlib.TgAuthState
 import com.nimbo.data.cloud.CloudOps
 import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.cloud.PlaybackPositions
+import com.nimbo.data.cloud.TgKind
+import com.nimbo.data.crypto.EncInfo
+import com.nimbo.data.crypto.KeyRing
+import com.nimbo.data.crypto.randomBytes
+import com.nimbo.data.crypto.sealInfo
 import com.nimbo.fakes.FakeTdClient
 import com.nimbo.fakes.MemoryStore
 import com.nimbo.fakes.docMessage
@@ -26,6 +31,7 @@ import org.junit.Test
 class CloudRepositoryTest {
     private val td = FakeTdClient()
     private val store = MemoryStore()
+    private val keys = KeyRing({ null }, {})
 
     private val scopes = mutableListOf<CoroutineScope>()
 
@@ -37,7 +43,7 @@ class CloudRepositoryTest {
     @After fun tearDown() = scopes.forEach { it.cancel() }
 
     private fun TestScope.repo(): CloudRepository =
-        CloudRepository(td, store, app(), StandardTestDispatcher(testScheduler))
+        CloudRepository(td, store, keys, app(), StandardTestDispatcher(testScheduler))
 
     @Test fun loadsOnReadyAndIndexes() = runTest {
         td.savedMessages(docMessage(2, "a.pdf", "#nimbo/docs"), docMessage(1, "b.pdf"))
@@ -94,6 +100,27 @@ class CloudRepositoryTest {
         assertTrue(store.rows.isEmpty())
     }
 
+    // Cifrado: opaco y bloqueado sin clave; nombre real al desbloquear. El
+    // índice nunca guarda el nombre real.
+    @Test fun encryptedNamesOpenWithKey() = runTest {
+        val k = randomBytes(32)
+        val info = sealInfo(k, EncInfo("secreto.mp4", 1234, ""))
+        td.savedMessages(docMessage(1, "a1b2c3.nimbo", "#nimbo/x #enc $info"))
+        val r = repo()
+        td.auth.value = TgAuthState.READY
+        advanceUntilIdle()
+        val locked = r.files.value.single()
+        assertTrue(locked.locked)
+        assertEquals("a1b2c3.nimbo", locked.name)
+        keys.set(k)
+        advanceUntilIdle()
+        val open = r.files.value.single()
+        assertEquals("secreto.mp4", open.name)
+        assertEquals(TgKind.VIDEO, open.kind)
+        assertEquals(1234L, open.sizeBytes)
+        assertEquals("a1b2c3.nimbo", store.rows.values.single().name)
+    }
+
     // Troceado: se lista uno y se borran todas sus partes.
     @Test fun splitFileListsOnceAndDeletesAllParts() = runTest {
         td.savedMessages(
@@ -117,7 +144,7 @@ class CloudRepositoryTest {
         td.savedMessages(m)
         td.on<TdApi.GetMessage> { m }
         val r = repo()
-        val ops = CloudOps(td, r, app())
+        val ops = CloudOps(td, r, keys, app())
         td.auth.value = TgAuthState.READY
         advanceUntilIdle()
         val moved = ops.move(r.files.value, "new/place")
@@ -131,7 +158,7 @@ class CloudRepositoryTest {
         td.savedMessages(m)
         td.on<TdApi.GetMessage> { m }
         val r = repo()
-        val ops = CloudOps(td, r, app())
+        val ops = CloudOps(td, r, keys, app())
         td.auth.value = TgAuthState.READY
         advanceUntilIdle()
         assertTrue(ops.renameFolder("music/rock", "music/metal"))

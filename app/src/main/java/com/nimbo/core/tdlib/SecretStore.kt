@@ -62,8 +62,19 @@ class SecretStore @Inject constructor(@ApplicationContext private val ctx: Conte
         return k
     }
 
+    // Clave maestra del cifrado de archivos (spec 12), ya desenvuelta.
+    fun encKey(): ByteArray? =
+        prefs?.getString(ENC_KEY, null)?.let { Base64.decode(it, Base64.NO_WRAP) }
+
+    fun setEncKey(k: ByteArray?) {
+        prefs?.edit(commit = true) {
+            if (k == null) remove(ENC_KEY) else putString(ENC_KEY, Base64.encodeToString(k, Base64.NO_WRAP))
+        }
+    }
+
     private companion object {
         const val FILE = "tg_secrets"
+        const val ENC_KEY = "enc_master"
         const val API_ID = "tg_api_id"
         const val API_HASH = "tg_api_hash"
         const val DB_KEY = "tg_db_key"

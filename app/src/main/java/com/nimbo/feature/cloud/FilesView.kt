@@ -108,7 +108,9 @@ fun FilesView(
     val flat = listing.flat
     fun label(path: String) = if (searching) path else path.substringAfterLast('/')
     val incompleteLabel = stringResource(R.string.incomplete)
+    val lockedLabel = stringResource(R.string.enc_locked)
     fun meta(f: TgFile) = listOfNotNull(
+        lockedLabel.takeIf { f.locked },
         incompleteLabel.takeIf { f.incomplete() },
         f.folder.takeIf { searching && it.isNotEmpty() },
         f.meta

@@ -41,6 +41,7 @@ class UploadService : Service() {
             is BatchLabel.Name -> l.text
             is BatchLabel.Files -> ctx.resources.getQuantityString(R.plurals.files_count, l.count, l.count)
             BatchLabel.Root -> ctx.getString(R.string.root)
+            is BatchLabel.Encrypting -> ctx.getString(R.string.enc_migrating, l.n, l.total)
         }
 
         fun finish(ctx: Context) {
