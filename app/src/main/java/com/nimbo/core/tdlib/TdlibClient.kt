@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import com.nimbo.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,11 +39,16 @@ class TdlibClient @Inject constructor(
     override fun start(apiId: Int, apiHash: String) {
         if (started) return
         started = true
-        val dir = java.io.File(ctx.filesDir, "tdlib").apply { mkdirs() }
+        val dir = File(ctx.filesDir, "tdlib").apply { mkdirs() }
+        // Nube-first: lo bajado (streaming, visor, player) vive en la caché
+        // (Android la cuenta como caché y la puede vaciar), no en los datos.
+        val filesDir = File(ctx.cacheDir, "tdlib").apply { mkdirs() }
+        // Pueden ser GB: fuera del hilo que arranca.
+        Thread { purgeOldFiles(dir) }.start()
         val key = secrets.dbKey()
         runCatching { Client.execute(TdApi.SetLogVerbosityLevel(0)) }
         client = Client.create(
-            { update -> onUpdate(apiId, apiHash, dir.absolutePath, key, update) },
+            { update -> onUpdate(apiId, apiHash, dir.absolutePath, filesDir.absolutePath, key, update) },
             { _error.value = "update failed" },
             { _error.value = it.message }
         )
@@ -55,7 +61,13 @@ class TdlibClient @Inject constructor(
         files.getOrPut(f.id) { MutableStateFlow(null) }.value = f
     }
 
-    private fun onUpdate(apiId: Int, apiHash: String, dbDir: String, dbKey: ByteArray, update: TdApi.Object) {
+    // Antes los archivos iban junto a la base (files/tdlib/<tipo>/) y nunca
+    // se borraban. Solo las carpetas de archivos de TDLib: la base se queda.
+    private fun purgeOldFiles(dbDir: File) {
+        OLD_FILE_DIRS.forEach { runCatching { File(dbDir, it).deleteRecursively() } }
+    }
+
+    private fun onUpdate(apiId: Int, apiHash: String, dbDir: String, filesDir: String, dbKey: ByteArray, update: TdApi.Object) {
         if (update is TdApi.UpdateFile) {
             noteFile(update.file)
             return
@@ -65,7 +77,7 @@ class TdlibClient @Inject constructor(
             // Base cifrada: copiar files/tdlib no basta para robar la sesión.
             is TdApi.AuthorizationStateWaitTdlibParameters -> client?.send(
                 TdApi.SetTdlibParameters(
-                    false, dbDir, dbDir, dbKey,
+                    false, dbDir, filesDir, dbKey,
                     true, true, true, false,
                     apiId, apiHash,
                     "en", "Android", "SDK ${Build.VERSION.SDK_INT}", BuildConfig.VERSION_NAME
@@ -132,5 +144,13 @@ class TdlibClient @Inject constructor(
 
     private fun fail(obj: TdApi.Object) {
         if (obj is TdApi.Error) _error.value = obj.message
+    }
+
+    private companion object {
+        val OLD_FILE_DIRS = listOf(
+            "animations", "documents", "music", "photos", "profile_photos", "secret", "secret_thumbnails",
+            "stickers", "stories", "temp", "thumbnails", "videos", "video_notes", "voice", "wallpapers",
+            "notification_sounds", "passport"
+        )
     }
 }

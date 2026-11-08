@@ -11,6 +11,7 @@ import com.nimbo.feature.main.VideoRoute
 import com.nimbo.player.PlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 // Vídeo (spec 08): cola = vídeos de la misma carpeta, por nombre.
@@ -33,11 +34,17 @@ class VideoViewModel @Inject constructor(
 
     fun stop() = player.stop()
 
+    // Subtítulos bajados: se sueltan de la caché al salir (el vídeo lo suelta el player).
+    private val subs: MutableSet<TgFile> = ConcurrentHashMap.newKeySet()
+
+    override fun onCleared() = plain.release(subs)
+
     // Subtítulo hermano (.srt/.vtt) del track actual → path local.
     suspend fun subtitleFor(f: TgFile): Pair<String, Boolean>? {
         val siblings = repo.files.value.filter { it.folder == f.folder && it.kind == TgKind.DOC }
         val name = pickSubtitle(f.name, siblings.map { it.name }, Locale.getDefault().language) ?: return null
         val sub = siblings.first { it.name == name }
+        subs += sub
         val path = plain.path(sub, 60_000) ?: return null
         return path to name.endsWith(".vtt", ignoreCase = true)
     }

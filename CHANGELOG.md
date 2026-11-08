@@ -10,6 +10,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Video player: pinch to fill or fit the screen, and swipe left or right to seek (the screen width is 90 seconds).
 - Video player: "Audio & subtitles" lets you pick the audio language and the subtitles embedded in the file (MKV, MP4), besides a side `.srt`.
 
+### Fixed
+- Watched videos, played music and opened files no longer pile up in the app's storage (it could grow to several GB). Nimbo now drops its copy when you close the video, viewer or reader, or switch tracks, and clears leftovers at startup. What was already stored is freed on the first launch after updating.
+
 ## [1.3.1] - 2026-10-28
 
 ### Changed

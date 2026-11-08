@@ -16,6 +16,7 @@ import com.nimbo.feature.main.PhotoRoute
 import com.nimbo.ui.common.UiText
 import com.nimbo.ui.common.text
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.Channel
@@ -53,16 +54,21 @@ class PhotoViewModel @Inject constructor(
         repo.files.value.associateBy { it.messageId }.let { m -> route.ids.mapNotNull { m[it] } }
     )
 
+    // Abiertos en esta visita: se sueltan de la caché al cerrar el visor.
+    private val opened: MutableSet<TgFile> = ConcurrentHashMap.newKeySet()
+
     private val _events = Channel<PhotoEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     // Original a tamaño visor (2048 px).
     suspend fun full(f: TgFile): ImageBitmap? = withContext(io) {
+        opened += f
         plain.path(f, 120_000)?.let(thumbs::full)
     }
 
     fun share(f: TgFile) {
         viewModelScope.launch {
+            opened += f
             val path = plain.path(f, 60_000)
             _events.send(if (path == null) PhotoEvent.Message(text(R.string.download_failed)) else PhotoEvent.Share(path, f.name))
         }
@@ -73,4 +79,6 @@ class PhotoViewModel @Inject constructor(
             _events.send(PhotoEvent.Message(text(if (transfers.download(f)) R.string.saved_to_downloads else R.string.download_failed)))
         }
     }
+
+    override fun onCleared() = plain.release(opened)
 }

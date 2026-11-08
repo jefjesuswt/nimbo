@@ -5,6 +5,7 @@ import com.nimbo.data.cloud.PartTag
 import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.TgPart
 import com.nimbo.data.cloud.groupParts
+import com.nimbo.data.cloud.fileIds
 import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.mapMessage
 import com.nimbo.data.cloud.messageIds
@@ -73,6 +74,9 @@ class PartsTest {
         val copy = out.first { it.folder == "w" }
         assertTrue(copy.incomplete())
         assertEquals(listOf(13L), out.first { it.name == "otro.txt" }.messageIds())
+        // Lo que se suelta de la caché de TDLib: todas las partes.
+        assertEquals(listOf(11, 12), peli.fileIds())
+        assertEquals(listOf(13), out.first { it.name == "otro.txt" }.fileIds())
     }
 
     @Test fun copyRangeRebuildsOriginal() {
