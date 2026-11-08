@@ -219,8 +219,6 @@ class PlayerController @Inject constructor(
     private fun loadCurrent() {
         val f = _queue.value.getOrNull(_index.value) ?: return
         savePos()
-        // Nube-first: lo del track anterior (stream, copia) no se queda.
-        _track.value?.takeIf { it.id != f.id }?.let { plain.release(listOf(it)) }
         _hasSubtitles.value = false
         _track.value = f
         _posMs.value = 0L
@@ -256,8 +254,6 @@ class PlayerController @Inject constructor(
                     val src = plain.path(f) { p -> _dlProgress.value = p } ?: throw IOException("download")
                     // Unido/descifrado ya vive en la caché de PlainFiles (se borra al bloquear).
                     val path = if (f.encrypted() || f.isSplit()) src else withContext(io) { stageCopy(src, f) }
-                        // Copiado: la de TDLib sobra (si no, el doble y se queda).
-                        .also { if (it != src) plain.release(listOf(f)) }
                     Uri.fromFile(java.io.File(path))
                 }
                 if (_track.value?.messageId != f.messageId) return@launch
@@ -435,7 +431,6 @@ class PlayerController @Inject constructor(
         dlJob?.cancel()
         player?.stop()
         player?.clearMediaItems()
-        _track.value?.let { plain.release(listOf(it)) }
         _track.value = null
         _playing.value = false
         _posMs.value = 0L

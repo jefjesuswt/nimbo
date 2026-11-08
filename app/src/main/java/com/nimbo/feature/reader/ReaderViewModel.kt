@@ -24,7 +24,6 @@ import com.nimbo.ui.common.UiText
 import com.nimbo.ui.common.text
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.Channel
@@ -55,11 +54,6 @@ class ReaderViewModel @Inject constructor(
     @IoDispatcher private val io: CoroutineDispatcher
 ) : ViewModel() {
     private val messageId = handle.toRoute<ReaderRoute>().messageId
-
-    // Leídos (original + hermano traducido): se sueltan al cerrar el lector.
-    private val opened: MutableSet<TgFile> = ConcurrentHashMap.newKeySet()
-
-    override fun onCleared() = plain.release(opened)
 
     val file: StateFlow<TgFile?> = repo.files.map { fs -> fs.firstOrNull { it.messageId == messageId } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, repo.files.value.firstOrNull { it.messageId == messageId })
@@ -111,7 +105,6 @@ class ReaderViewModel @Inject constructor(
     }
 
     private suspend fun readText(f: TgFile): Pair<String, String>? = withContext(io) {
-        opened += f
         val path = plain.path(f, 60_000) ?: return@withContext null
         runCatching {
             val bytes = java.io.File(path).inputStream().use { it.readBytes() }.take(512 * 1024).toByteArray()

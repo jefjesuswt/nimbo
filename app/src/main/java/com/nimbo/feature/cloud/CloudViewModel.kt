@@ -187,8 +187,6 @@ class CloudViewModel @AssistedInject constructor(
             f.kind == TgKind.VIDEO -> emit(CloudEvent.OpenVideo(f.messageId))
             f.locked -> say(text(R.string.enc_locked_hint))
             // Troceados y cifrados: PlainFiles los une/descifra en caché.
-            // ponytail: no se sabe cuándo termina la otra app; lo suelta el
-            // barrido de PlainFiles al volver a entrar.
             else -> viewModelScope.launch {
                 val path = plain.path(f)
                 val mime = when (f.kind) {

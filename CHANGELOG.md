@@ -9,9 +9,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Added
 - Video player: pinch to fill or fit the screen, and swipe left or right to seek (the screen width is 90 seconds).
 - Video player: "Audio & subtitles" lets you pick the audio language and the subtitles embedded in the file (MKV, MP4), besides a side `.srt`.
+- Settings → Storage: see how much space the cache uses, clear it, and choose how long opened media is kept (1 day to forever, default 1 week) and the maximum cache size (default 5 GB). Old media is cleaned up at launch.
 
 ### Fixed
-- Watched videos, played music and opened files no longer pile up in the app's storage (it could grow to several GB). Nimbo now drops its copy when you close the video, viewer or reader, or switch tracks, and clears leftovers at startup. What was already stored is freed on the first launch after updating.
+- Watched videos, played music and opened files piled up as "User data" (several GB) and "Clear cache" couldn't free them. They now live in the cache, and what was already stored is freed on the first launch after updating.
 
 ## [1.3.1] - 2026-10-28
 

@@ -25,6 +25,24 @@ enum class ThemeMode(val key: String) {
     }
 }
 
+// Caché de lo abierto (como Telegram): cuánto se conserva sin abrirlo.
+enum class KeepMedia(val key: String, val days: Int) {
+    DAY("1d", 1), WEEK("1w", 7), MONTH("1m", 30), FOREVER("forever", 0);
+
+    companion object {
+        fun of(key: String?): KeepMedia = entries.firstOrNull { it.key == key } ?: WEEK
+    }
+}
+
+// Tope de la caché; al pasarlo se borra lo abierto hace más tiempo.
+enum class CacheLimit(val key: String, val gb: Int) {
+    GB1("1", 1), GB5("5", 5), GB10("10", 10), NONE("none", 0);
+
+    companion object {
+        fun of(key: String?): CacheLimit = entries.firstOrNull { it.key == key } ?: GB5
+    }
+}
+
 data class Appearance(val theme: ThemeMode, val seed: Seed, val dynamic: Boolean)
 
 // Dueño único del SharedPreferences "nimbo". Mismas claves que antes del
@@ -78,7 +96,17 @@ class AppPrefs @Inject constructor(private val p: SharedPreferences) {
         get() = p.getBoolean(ENCRYPT_UPLOADS, false)
         set(v) = p.edit { putBoolean(ENCRYPT_UPLOADS, v) }
 
+    var keepMedia: KeepMedia
+        get() = KeepMedia.of(p.getString(KEEP_MEDIA, null))
+        set(v) = p.edit { putString(KEEP_MEDIA, v.key) }
+
+    var cacheLimit: CacheLimit
+        get() = CacheLimit.of(p.getString(CACHE_LIMIT, null))
+        set(v) = p.edit { putString(CACHE_LIMIT, v.key) }
+
     private companion object {
+        const val KEEP_MEDIA = "keep_media"
+        const val CACHE_LIMIT = "cache_limit"
         const val ENCRYPT_UPLOADS = "encrypt_uploads"
         const val THEME_MODE = "theme_mode"
         const val SEED = "seed"

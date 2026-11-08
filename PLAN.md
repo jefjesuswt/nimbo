@@ -53,8 +53,8 @@
 - ~~10 Copia automática de la galería~~ descartada: frágil en segundo plano (sesión TDLib desde WorkManager, restricciones de carga/red). PR #3 cerrado
 - [ ] 10b (idea) Retomar la copia de la galería con UI estilo Google Photos: tarjeta "Copia activada/desactivada", qué carpetas, solo Wi-Fi/cargando, estado y progreso. Resolver antes lo que tumbó la 10
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
-- [x] Nube-first de verdad: lo visto/escuchado no se queda (TDLib guardaba todo en files/tdlib, GB en "datos"). Archivos de TDLib a cacheDir, purga de lo viejo, soltar al cerrar visor/lector/player, barrido al entrar
-- [ ] Verificar en celu: "Datos de usuario" baja tras actualizar; ver un vídeo y cerrarlo no sube datos ni caché; música sigue andando (seek, siguiente)
+- [x] Caché como Telegram: archivos de TDLib a cacheDir (antes en files/tdlib = GB en "datos"), purga de lo viejo, Ajustes → Almacenamiento (uso, limpiar, conservar 1 día…siempre, tope 1/5/10 GB/sin límite), limpieza al entrar
+- [ ] Verificar en celu: "Datos de usuario" baja tras actualizar y la sesión sigue; uso en Ajustes cuadra con el de Android; limpiar caché; ver un vídeo dos veces no lo baja de nuevo
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
 - [x] 13 Archivos > 2 GB (troceo): subir en partes, listar como uno, streaming entre partes, descargar unido, borrar/mover/copiar todas
 - [ ] 13 verificar en celu: subir vídeo > 2 GB, seek cruzando partes, descargar unido, mover/borrar

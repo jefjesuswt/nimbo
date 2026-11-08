@@ -25,6 +25,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DataUsage
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
@@ -45,6 +48,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,8 +66,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nimbo.R
+import com.nimbo.core.prefs.CacheLimit
+import com.nimbo.core.prefs.KeepMedia
 import com.nimbo.core.prefs.ThemeMode
 import com.nimbo.core.tdlib.TgAuthState
+import com.nimbo.core.util.formatBytes
 import com.nimbo.data.crypto.EncState
 import com.nimbo.data.translate.Translator
 import com.nimbo.ui.common.NimboScaffold
@@ -145,6 +152,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 }
                 TelegramGroup(vm)
                 EncryptionGroup(vm)
+                StorageGroup(vm)
                 TranslationGroup(vm)
                 Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
@@ -193,6 +201,70 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
         )
     }
     if (aboutDlg) AboutDialog(onDismiss = { aboutDlg = false })
+}
+
+// Almacenamiento (como Telegram): lo abierto queda en caché para no bajarlo
+// otra vez; aquí se ve cuánto ocupa, se limpia y se elige cuánto se guarda.
+@Composable
+private fun StorageGroup(vm: SettingsViewModel) {
+    val used by vm.cacheUsed.collectAsStateWithLifecycle()
+    val clearing by vm.cacheClearing.collectAsStateWithLifecycle()
+    var keepDlg by remember { mutableStateOf(false) }
+    var limitDlg by remember { mutableStateOf(false) }
+    // Cada vez que se entra: lo visto desde la última vez cuenta.
+    LaunchedEffect(Unit) { vm.refreshCache() }
+    val noLimit = stringResource(R.string.cache_no_limit)
+    fun limitLabel(l: CacheLimit) = if (l.gb > 0) "${l.gb} GB" else noLimit
+    Group(stringResource(R.string.storage_group)) {
+        PrefRow(
+            icon = Icons.Filled.DeleteSweep,
+            title = stringResource(R.string.cache_clear),
+            sub = when {
+                clearing -> stringResource(R.string.cache_clearing)
+                else -> used?.let { stringResource(R.string.cache_used, formatBytes(it)) } ?: stringResource(R.string.cache_measuring)
+            },
+            onClick = { if (!clearing) vm.clearConfirm = true }
+        )
+        PrefRow(
+            icon = Icons.Filled.History,
+            title = stringResource(R.string.keep_media),
+            sub = stringResource(keepMediaLabel(vm.keepMedia)),
+            onClick = { keepDlg = true }
+        )
+        PrefRow(
+            icon = Icons.Filled.DataUsage,
+            title = stringResource(R.string.cache_limit),
+            sub = limitLabel(vm.cacheLimit),
+            onClick = { limitDlg = true }
+        )
+    }
+    if (vm.clearConfirm) AlertDialog(
+        onDismissRequest = { vm.clearConfirm = false },
+        title = { Text(stringResource(R.string.cache_clear_confirm_title)) },
+        text = { Text(stringResource(R.string.cache_clear_confirm)) },
+        confirmButton = { TextButton(onClick = vm::clearCache) { Text(stringResource(R.string.cache_clear_action)) } },
+        dismissButton = { TextButton(onClick = { vm.clearConfirm = false }) { Text(stringResource(R.string.cancel)) } }
+    )
+    if (keepDlg) RadioDialog(
+        title = stringResource(R.string.keep_media),
+        options = KeepMedia.entries.map { it.key to stringResource(keepMediaLabel(it)) },
+        initial = vm.keepMedia.key,
+        onDismiss = { keepDlg = false },
+        onConfirm = {
+            keepDlg = false
+            vm.setKeepMedia(KeepMedia.of(it))
+        }
+    )
+    if (limitDlg) RadioDialog(
+        title = stringResource(R.string.cache_limit),
+        options = CacheLimit.entries.map { it.key to limitLabel(it) },
+        initial = vm.cacheLimit.key,
+        onDismiss = { limitDlg = false },
+        onConfirm = {
+            limitDlg = false
+            vm.setCacheLimit(CacheLimit.of(it))
+        }
+    )
 }
 
 // Traducción del lector: proveedor (solo si hay más de uno, build

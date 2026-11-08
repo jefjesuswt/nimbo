@@ -4,11 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.nimbo.core.di.ApplicationScope
 import com.nimbo.core.tdlib.TdClient
-import com.nimbo.core.tdlib.TgAuthState
 import com.nimbo.core.util.trimCache
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.encrypted
-import com.nimbo.data.cloud.fileIds
 import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.isSplit
 import com.nimbo.data.crypto.DecryptingOutputStream
@@ -31,43 +29,18 @@ class PlainFiles @Inject constructor(
     private val client: TdClient,
     private val fetcher: FileFetcher,
     private val keys: KeyRing,
-    @ApplicationScope private val scope: CoroutineScope
+    @ApplicationScope scope: CoroutineScope
 ) {
     private val dir = File(ctx.cacheDir, "plain")
 
     init {
         // Bloquear o cerrar sesión: fuera todo lo descifrado del teléfono.
         scope.launch { keys.key.collect { if (it == null) dir.deleteRecursively() } }
-        // Al entrar: lo que quedó de la sesión anterior (app matada, visor
-        // del sistema) no se queda en el teléfono.
-        scope.launch { client.auth.collect { if (it == TgAuthState.READY) sweep() } }
     }
-
-    // Nube-first: nada de lo visto/escuchado se queda. Media fuera entera;
-    // fotos y miniaturas (la grilla) con un tope chico, las más viejas fuera.
-    suspend fun sweep() {
-        client.send(TdApi.OptimizeStorage(0, 0, 0, 0, mediaTypes(), LongArray(0), LongArray(0), false, 0))
-        client.send(TdApi.OptimizeStorage(THUMBS_CAP, -1, -1, -1, thumbTypes(), LongArray(0), LongArray(0), false, 0))
-    }
-
-    // Al cerrar el visor/lector/player: fuera la copia de TDLib (o la unida/
-    // descifrada). Volver a abrirlo lo baja de nuevo.
-    fun release(files: Collection<TgFile>) {
-        if (files.isEmpty()) return
-        val list = files.toList()
-        scope.launch {
-            list.forEach { f ->
-                f.fileIds().forEach { client.send(TdApi.DeleteFile(it)) }
-                if (f.isSplit() || f.encrypted()) out(f).delete()
-            }
-        }
-    }
-
-    private fun out(f: TgFile) = File(dir, "${f.messageId}-${f.name.replace('/', '_').takeLast(100)}")
 
     suspend fun path(f: TgFile, stallMs: Long = 180_000, report: (Float) -> Unit = {}): String? {
         if (!f.isSplit() && !f.encrypted()) return fetcher.awaitFile(f.fileId, stallMs, report)
-        val out = out(f)
+        val out = File(dir, "${f.messageId}-${f.name.replace('/', '_').takeLast(100)}")
         if (out.exists()) return out.path
         dir.mkdirs()
         val tmp = File(dir, out.name + ".tmp")
@@ -98,7 +71,7 @@ class PlainFiles @Inject constructor(
                 val file = File(path)
                 val s = sink ?: DecryptingOutputStream(key!!, file.length(), out).also { sink = it }
                 file.inputStream().use { it.copyTo(s) }
-                // Ya copiado: fuera de la caché de TDLib (si no, el doble y se queda).
+                // Ya copiado (Download, cifrar): fuera de TDLib, si no ocupa el doble.
                 client.send(TdApi.DeleteFile(id))
             }
             if (key != null) sink?.close()
@@ -113,13 +86,5 @@ class PlainFiles @Inject constructor(
 
     private companion object {
         const val TAG = "PlainFiles"
-        const val THUMBS_CAP = 64L shl 20
-
-        fun mediaTypes(): Array<TdApi.FileType> = arrayOf(
-            TdApi.FileTypeVideo(), TdApi.FileTypeAudio(), TdApi.FileTypeDocument(), TdApi.FileTypeAnimation(),
-            TdApi.FileTypeVoiceNote(), TdApi.FileTypeVideoNote(), TdApi.FileTypeTemp()
-        )
-
-        fun thumbTypes(): Array<TdApi.FileType> = arrayOf(TdApi.FileTypePhoto(), TdApi.FileTypeThumbnail())
     }
 }

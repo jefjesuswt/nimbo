@@ -67,9 +67,6 @@ fun TgFile.encrypted(): Boolean = encInfo.isNotEmpty()
 // Mensajes que forman el archivo (borrar/mover actúan sobre todos).
 fun TgFile.messageIds(): List<Long> = if (parts.isEmpty()) listOf(messageId) else parts.map { it.messageId }
 
-// Archivos TDLib que lo forman (lo que hay que soltar de la caché).
-fun TgFile.fileIds(): List<Int> = (if (parts.isEmpty()) listOf(fileId) else parts.map { it.fileId }).filter { it != 0 }
-
 fun TgFile.showTitle(): String = title.ifEmpty { name }
 
 fun TgFile.isPlayable(): Boolean = kind == TgKind.AUDIO || kind == TgKind.VIDEO

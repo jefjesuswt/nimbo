@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.nimbo.R
 import com.nimbo.core.prefs.AppPrefs
 import com.nimbo.core.prefs.Appearance
+import com.nimbo.core.prefs.CacheLimit
+import com.nimbo.core.prefs.KeepMedia
 import com.nimbo.core.prefs.ThemeMode
 import com.nimbo.core.tdlib.ApiKeys
 import com.nimbo.core.tdlib.TgAuthState
@@ -17,6 +19,7 @@ import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.crypto.EncState
 import com.nimbo.data.crypto.Encryption
 import com.nimbo.data.crypto.SetupResult
+import com.nimbo.data.transfer.MediaCache
 import com.nimbo.data.transfer.TransferManager
 import com.nimbo.data.transfer.toEncrypt
 import com.nimbo.data.translate.Translator
@@ -29,6 +32,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+fun keepMediaLabel(k: KeepMedia): Int = when (k) {
+    KeepMedia.DAY -> R.string.keep_day
+    KeepMedia.WEEK -> R.string.keep_week
+    KeepMedia.MONTH -> R.string.keep_month
+    KeepMedia.FOREVER -> R.string.keep_forever
+}
 
 fun themeModeLabel(mode: ThemeMode): Int = when (mode) {
     ThemeMode.LIGHT -> R.string.theme_light
@@ -46,7 +56,8 @@ class SettingsViewModel @Inject constructor(
     private val auth: AuthRepository,
     private val encryption: Encryption,
     repo: CloudRepository,
-    private val transfers: TransferManager
+    private val transfers: TransferManager,
+    private val cache: MediaCache
 ) : ViewModel() {
     val appearance: StateFlow<Appearance> = prefs.appearance
     fun setTheme(m: ThemeMode) = prefs.setTheme(m)
@@ -143,6 +154,35 @@ class SettingsViewModel @Inject constructor(
     fun encryptExisting() {
         encConfirm = false
         transfers.encryptExisting()
+    }
+
+    // Almacenamiento (como Telegram): uso de la caché, limpiar, y limpieza
+    // automática por tiempo sin abrir + tope.
+    val cacheUsed: StateFlow<Long?> = cache.used
+    val cacheClearing: StateFlow<Boolean> = cache.clearing
+    var keepMedia by mutableStateOf(prefs.keepMedia)
+        private set
+    var cacheLimit by mutableStateOf(prefs.cacheLimit)
+        private set
+    var clearConfirm by mutableStateOf(false)
+
+    fun refreshCache() = cache.refresh()
+
+    fun setKeepMedia(k: KeepMedia) {
+        keepMedia = k
+        prefs.keepMedia = k
+        cache.autoClean()
+    }
+
+    fun setCacheLimit(l: CacheLimit) {
+        cacheLimit = l
+        prefs.cacheLimit = l
+        cache.autoClean()
+    }
+
+    fun clearCache() {
+        clearConfirm = false
+        cache.clear()
     }
 
     private companion object {
