@@ -55,6 +55,7 @@
 - [ ] 11 Disponible sin conexión + pantalla de almacenamiento
 - [x] Caché como Telegram: archivos de TDLib a cacheDir (antes en files/tdlib = GB en "datos"), purga de lo viejo, Ajustes → Almacenamiento (uso, limpiar, conservar 1 día…siempre, tope 1/5/10 GB/sin límite), limpieza al entrar
 - [ ] Verificar en celu: "Datos de usuario" baja tras actualizar y la sesión sigue; uso en Ajustes cuadra con el de Android; limpiar caché; ver un vídeo dos veces no lo baja de nuevo
+- [ ] 16 (idea) Inicio como primera pantalla: continuar, escuchado hace poco, mix del día, artistas top, recuerdos de fotos, subido hace poco, estadísticas de la semana (spec 16, necesita `play_log`)
 - [ ] 14a Android Auto · [ ] 14b widget del player · [ ] 14c letras .lrc
 - [x] 13 Archivos > 2 GB (troceo): subir en partes, listar como uno, streaming entre partes, descargar unido, borrar/mover/copiar todas
 - [ ] 13 verificar en celu: subir vídeo > 2 GB, seek cruzando partes, descargar unido, mover/borrar
