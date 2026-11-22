@@ -276,4 +276,12 @@
     <string name="tr_unsupported">この言語は端末上の翻訳に対応していません。</string>
     <string name="tr_models_mobile">モバイルデータで言語モデルをダウンロード</string>
     <string name="tr_models_mobile_sub">1 言語あたり約 30 MB</string>
+    <string name="storage_group">ストレージ</string>
+    <string name="storage_used">この端末のストレージ</string>
+    <string name="storage_used_sub">Telegram のファイル %1$s · キャッシュ %2$s。Nimbo は最大 1 GB まで保持し、1 週間開いていないものを削除します</string>
+    <string name="storage_measuring">計測中…</string>
+    <string name="storage_clear">消去</string>
+    <string name="storage_clear_title">ストレージを消去しますか？</string>
+    <string name="storage_clear_confirm">この端末にあるファイルのコピー (%1$s) を削除します。ファイルは Telegram に残り、開くと再ダウンロードされます。セッションと Download/Nimbo の内容はそのままです。</string>
+    <string name="storage_freed">%1$s を解放しました</string>
 </resources>

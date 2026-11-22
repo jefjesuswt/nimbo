@@ -286,4 +286,12 @@
     <string name="tr_unsupported">This language isn\'t available for translation on this phone.</string>
     <string name="tr_models_mobile">Download language models on mobile data</string>
     <string name="tr_models_mobile_sub">About 30 MB per language</string>
+    <string name="storage_group">Storage</string>
+    <string name="storage_used">Storage on this phone</string>
+    <string name="storage_used_sub">Telegram files %1$s · cache %2$s. Nimbo keeps up to 1 GB and removes what you have not opened in a week</string>
+    <string name="storage_measuring">Measuring…</string>
+    <string name="storage_clear">Clear</string>
+    <string name="storage_clear_title">Clear storage?</string>
+    <string name="storage_clear_confirm">Removes the copies of your files on this phone (%1$s). They stay in Telegram and download again when you open them. Your session and files in Download/Nimbo are not touched.</string>
+    <string name="storage_freed">Freed %1$s</string>
 </resources>
