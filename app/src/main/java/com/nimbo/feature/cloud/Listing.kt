@@ -41,7 +41,9 @@ data class Listing(
     val showCrumb: Boolean = false,
     // Lista plana (Música/Fotos): sin carpetas ni migas.
     val flat: Boolean = false,
-    val albumName: String = ""
+    val albumName: String = "",
+    // De qué pantalla es (ver scrollKeyOf): la posición se guarda por clave.
+    val scrollKey: String = "d:"
 ) {
     val empty: EmptyKind?
         get() = when {
@@ -81,7 +83,7 @@ fun buildListing(
     val terms = searchTerms(b.query)
     val searching = terms.isNotEmpty()
     if (tabList != null && b.album == null && !searching) {
-        return Listing(albums = sortAlbums(albumsOf(tabList), b.sort), flat = true)
+        return Listing(albums = sortAlbums(albumsOf(tabList), b.sort), flat = true, scrollKey = scrollKeyOf(b, albums = true))
     }
     val flat = when {
         tabList == null -> null
@@ -103,8 +105,18 @@ fun buildListing(
         searching = searching,
         showCrumb = flat == null && (b.dir.isNotEmpty() || subs.isNotEmpty()),
         flat = flat != null,
-        albumName = albumName
+        albumName = albumName,
+        scrollKey = scrollKeyOf(b)
     )
+}
+
+// Clave de scroll: carpeta, álbum, lista de álbumes o búsqueda ("?…", no
+// se guarda). Va en el Listing para que siempre case con sus ítems.
+fun scrollKeyOf(b: Browse, albums: Boolean = false): String = when {
+    searchTerms(b.query).isNotEmpty() -> "?" + b.query
+    albums -> "albums"
+    b.album != null -> "a:" + b.album
+    else -> "d:" + b.dir
 }
 
 // Cola al reproducir: Música con álbum abierto = ese álbum; si no, los

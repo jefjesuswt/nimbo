@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.ChevronRight
@@ -47,12 +49,21 @@ import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.albumInfo
 import com.nimbo.data.cloud.albumSubtitle
 import com.nimbo.ui.common.EmptyState
+import com.nimbo.ui.common.KeepScroll
+import com.nimbo.ui.common.ScrollMemory
 import com.nimbo.ui.common.fileArt
 
 // Pestañas Audio / Fotos: álbumes (carpetas) en lista o grid. Tocar abre
 // sus archivos en FilesView. Contador arriba a la izquierda, estilo Mihon.
 @Composable
-fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (String) -> Unit) {
+fun AlbumsView(
+    albums: List<TgAlbum>,
+    audio: Boolean,
+    grid: Boolean,
+    onOpen: (String) -> Unit,
+    scrollKey: String,
+    scroll: ScrollMemory
+) {
     val cs = MaterialTheme.colorScheme
     if (albums.isEmpty()) {
         EmptyState(
@@ -63,7 +74,10 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
         return
     }
     if (grid) {
+        val gridState = rememberLazyGridState()
+        KeepScroll(scrollKey, true, scroll, gridState)
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Adaptive(160.dp),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 16.dp),
@@ -98,7 +112,9 @@ fun AlbumsView(albums: List<TgAlbum>, audio: Boolean, grid: Boolean, onOpen: (St
             }
         }
     } else {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+        val listState = rememberLazyListState()
+        KeepScroll(scrollKey, true, scroll, listState)
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
             items(albums, key = { "a" + it.folder }) { a ->
                 Row(
                     Modifier.fillMaxWidth().clickable { onOpen(a.folder) }

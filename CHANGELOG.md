@@ -6,6 +6,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Going back to a folder (or to the album list in Audio and Photos) now returns to where you were in the list instead of the top. Opening a folder still starts at the top.
+
 ## [1.4.0] - 2026-11-22
 
 ### Added

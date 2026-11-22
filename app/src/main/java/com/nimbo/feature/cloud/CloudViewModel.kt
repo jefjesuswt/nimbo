@@ -1,5 +1,7 @@
 package com.nimbo.feature.cloud
 
+import com.nimbo.ui.common.ScrollMemory
+import com.nimbo.ui.common.isAncestor
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -122,9 +124,20 @@ class CloudViewModel @AssistedInject constructor(
 
     // ---- Navegación ----
 
+    // Posición de cada carpeta/álbum de esta pestaña.
+    val scroll = ScrollMemory()
+
     // Abrir carpeta (también desde la búsqueda: navega y la cierra).
-    fun openDir(dir: String) = _browse.update { it.copy(dir = dir, query = "", searchOpen = false) }
-    fun openAlbum(folder: String?) = _browse.update { it.copy(album = folder) }
+    fun openDir(dir: String) {
+        // Volver (miga a un padre) recupera dónde ibas; entrar empieza arriba.
+        if (!isAncestor(dir, _browse.value.dir)) scroll.forget(scrollKeyOf(Browse(dir = dir, sort = _browse.value.sort)))
+        _browse.update { it.copy(dir = dir, query = "", searchOpen = false) }
+    }
+
+    fun openAlbum(folder: String?) {
+        if (folder != null) scroll.forget(scrollKeyOf(Browse(sort = _browse.value.sort, album = folder)))
+        _browse.update { it.copy(album = folder) }
+    }
     fun openSearch() = _browse.update { it.copy(searchOpen = true) }
     fun closeSearch() = _browse.update { it.copy(searchOpen = false, query = "") }
     // Perder el foco (teclado oculto, scroll): el campo se cierra, el filtro queda.
