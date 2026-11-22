@@ -17,10 +17,13 @@ import com.nimbo.data.cloud.CloudRepository
 import com.nimbo.data.crypto.EncState
 import com.nimbo.data.crypto.Encryption
 import com.nimbo.data.crypto.SetupResult
+import com.nimbo.data.storage.StorageCleaner
+import com.nimbo.data.storage.StorageUsage
 import com.nimbo.data.transfer.TransferManager
 import com.nimbo.data.transfer.toEncrypt
 import com.nimbo.data.translate.Translator
 import com.nimbo.data.translate.TranslatorRegistry
+import com.nimbo.player.PlayerController
 import com.nimbo.ui.theme.Seed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -46,7 +49,9 @@ class SettingsViewModel @Inject constructor(
     private val auth: AuthRepository,
     private val encryption: Encryption,
     repo: CloudRepository,
-    private val transfers: TransferManager
+    private val transfers: TransferManager,
+    private val storage: StorageCleaner,
+    private val player: PlayerController
 ) : ViewModel() {
     val appearance: StateFlow<Appearance> = prefs.appearance
     fun setTheme(m: ThemeMode) = prefs.setTheme(m)
@@ -143,6 +148,37 @@ class SettingsViewModel @Inject constructor(
     fun encryptExisting() {
         encConfirm = false
         transfers.encryptExisting()
+    }
+
+    // Almacenamiento: medir al entrar, vaciar con confirmación.
+    var usage by mutableStateOf<StorageUsage?>(null)
+        private set
+    var clearing by mutableStateOf(false)
+        private set
+    var freed by mutableStateOf<Long?>(null)
+        private set
+    var clearConfirm by mutableStateOf(false)
+
+    fun measureStorage() {
+        viewModelScope.launch { usage = storage.usage() }
+    }
+
+    fun clearStorage() {
+        clearConfirm = false
+        if (clearing) return
+        clearing = true
+        viewModelScope.launch {
+            val before = usage?.total ?: storage.usage().total
+            try {
+                // Con algo sonando, su copia en caché sigue en uso.
+                storage.clear(if (player.track.value != null) setOf(PlayerController.CACHE_DIR) else emptySet())
+            } finally {
+                val now = storage.usage()
+                usage = now
+                freed = (before - now.total).coerceAtLeast(0)
+                clearing = false
+            }
+        }
     }
 
     private companion object {

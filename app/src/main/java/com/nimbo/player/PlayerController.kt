@@ -458,7 +458,7 @@ class PlayerController @Inject constructor(
         }
     }
 
-    private companion object {
+    companion object {
         const val CACHE_DIR = "tg-player"
     }
 }

@@ -17,7 +17,7 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 - `app/src/main/java/com/nimbo/`:
   - `NimboApplication` (`@HiltAndroidApp`), `MainActivity` (tema, compartir, permisos; nada más).
   - `core/` — `di/` (scope de app, dispatchers), `tdlib/` (`TdClient` interfaz + `TdlibClient`, `SecretStore`), `prefs/AppPrefs` (único dueño del SharedPreferences), `util/`.
-  - `data/` — `cloud/` (`CloudRepository`, `CloudOps`, `PlaybackPositions`, captions y árbol puros, `local/` índice SQLite tras `CloudStore`), `transfer/` (`TransferManager`, `FileFetcher`, `UploadService`), `media/` (thumbs/covers con tope de memoria), `translate/`, `auth/`.
+  - `data/` — `cloud/` (`CloudRepository`, `CloudOps`, `PlaybackPositions`, captions y árbol puros, `local/` índice SQLite tras `CloudStore`), `transfer/` (`TransferManager`, `FileFetcher`, `UploadService`), `media/` (thumbs/covers con tope de memoria), `translate/`, `auth/`, `storage/` (`StorageCleaner`: tope de 1 GB / 7 días a los archivos de TDLib con `optimizeStorage` cada 30 min, y More › Storage para medir y vaciar; los archivos de `filesDir/tdlib` solo se borran vía TDLib, nunca a mano).
   - `player/` — `PlayerController` (dueño del ExoPlayer), `PlaybackService`, streaming TDLib.
   - `feature/` — una carpeta por pantalla con su `@HiltViewModel`: `main/` (NavHost + rutas tipadas: Files · Music · Photos · More estilo Mihon, visores encima), `auth/`, `cloud/`, `transfer/`, `player/`, `viewer/`, `video/`, `reader/`, `settings/`.
   - `ui/common/`, `ui/theme/` — componentes y tema compartidos.

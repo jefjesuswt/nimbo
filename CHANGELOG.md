@@ -6,9 +6,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-22
+
 ### Added
 - Video player: pinch to fill or fit the screen, and swipe left or right to seek (the screen width is 90 seconds).
 - Video player: "Audio & subtitles" lets you pick the audio language and the subtitles embedded in the file (MKV, MP4), besides a side `.srt`.
+- More › Storage shows how much Nimbo takes on the phone (Telegram files and cache) and clears it. Your files stay in Telegram and download again when you open them.
+
+### Fixed
+- Files opened, played or streamed stayed on the phone forever (Telegram's own cache could grow to many gigabytes). Nimbo now keeps up to 1 GB and removes files not opened in a week.
+- Downloading to `Download/Nimbo` no longer leaves a second copy in the app's cache.
 
 ## [1.3.1] - 2026-10-28
 
@@ -93,7 +100,8 @@ First public release.
 - Your `api_id` / `api_hash` are typed in the app and stored encrypted on the phone only; Nimbo ships no keys.
 - The Telegram session database is encrypted and excluded from backups.
 
-[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/jefjesuswt/nimbo/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/jefjesuswt/nimbo/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/jefjesuswt/nimbo/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jefjesuswt/nimbo/compare/v1.1.0...v1.2.0

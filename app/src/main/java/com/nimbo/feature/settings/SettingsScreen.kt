@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -45,6 +46,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nimbo.R
 import com.nimbo.core.prefs.ThemeMode
 import com.nimbo.core.tdlib.TgAuthState
+import com.nimbo.core.util.formatBytes
 import com.nimbo.data.crypto.EncState
 import com.nimbo.data.translate.Translator
 import com.nimbo.ui.common.NimboScaffold
@@ -146,6 +149,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 TelegramGroup(vm)
                 EncryptionGroup(vm)
                 TranslationGroup(vm)
+                StorageGroup(vm)
                 Group(stringResource(R.string.settings_notifications)) {
                     PrefRow(
                         icon = Icons.Filled.Tune, title = stringResource(R.string.settings_notif_categories),
@@ -226,6 +230,40 @@ private fun TranslationGroup(vm: SettingsViewModel) {
             dlg = false
             vm.setTranslator(id)
         }
+    )
+}
+
+// Lo que ocupa en el teléfono (archivos de TDLib + caché) y vaciarlo.
+@Composable
+private fun StorageGroup(vm: SettingsViewModel) {
+    LaunchedEffect(Unit) { vm.measureStorage() }
+    val u = vm.usage
+    val sub = when {
+        u == null || vm.clearing -> stringResource(R.string.storage_measuring)
+        else -> listOfNotNull(
+            vm.freed?.let { stringResource(R.string.storage_freed, formatBytes(it)) },
+            stringResource(R.string.storage_used_sub, formatBytes(u.tdlibFiles), formatBytes(u.cache))
+        ).joinToString(" · ")
+    }
+    Group(stringResource(R.string.storage_group)) {
+        PrefRow(
+            icon = Icons.Filled.Storage,
+            title = stringResource(R.string.storage_used) + (u?.let { " · " + formatBytes(it.total) } ?: ""),
+            sub = sub,
+            trailing = {
+                TextButton(enabled = u != null && !vm.clearing, onClick = { vm.clearConfirm = true }) {
+                    Text(stringResource(R.string.storage_clear))
+                }
+            }
+        )
+        if (vm.clearing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+    }
+    if (vm.clearConfirm) AlertDialog(
+        onDismissRequest = { vm.clearConfirm = false },
+        title = { Text(stringResource(R.string.storage_clear_title)) },
+        text = { Text(stringResource(R.string.storage_clear_confirm, formatBytes(u?.total ?: 0))) },
+        confirmButton = { TextButton(onClick = vm::clearStorage) { Text(stringResource(R.string.storage_clear)) } },
+        dismissButton = { TextButton(onClick = { vm.clearConfirm = false }) { Text(stringResource(R.string.cancel)) } }
     )
 }
 

@@ -676,6 +676,9 @@ class TransferManager @Inject constructor(
             ctx.contentResolver.openOutputStream(uri)?.use { plain.write(f, it) } ?: false
         }.getOrDefault(false)
         if (!ok) runCatching { ctx.contentResolver.delete(uri, null, null) }
+        // Ya está en Downloads: la copia de TDLib sobra (si no, el doble).
+        // Las partes ya las suelta PlainFiles.write.
+        if (ok && !f.isSplit()) client.send(TdApi.DeleteFile(f.fileId))
         return ok
     }
 
