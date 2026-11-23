@@ -28,4 +28,4 @@ install -m644 packaging/nimbo-desktop.svg "$out/share/icons/hicolor/scalable/app
 install -m644 ../LICENSE "$out/"
 
 tar -C target/dist -czf "target/dist/$name.tar.gz" "$name"
-sha256sum "target/dist/$name.tar.gz" | tee "target/dist/$name.tar.gz.sha256"
+(cd target/dist && sha256sum "$name.tar.gz" | tee "$name.tar.gz.sha256")
