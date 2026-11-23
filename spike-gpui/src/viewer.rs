@@ -23,7 +23,7 @@ impl App {
         }
     }
 
-    fn step_viewer(&mut self, d: isize, cx: &mut Context<Self>) {
+    pub(crate) fn step_viewer(&mut self, d: isize, cx: &mut Context<Self>) {
         if let Some((imgs, at)) = &mut self.viewer {
             let n = imgs.len() as isize;
             *at = ((*at as isize + d).rem_euclid(n)) as usize;

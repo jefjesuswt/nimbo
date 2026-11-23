@@ -1,6 +1,8 @@
 mod app;
 mod captions;
 mod library;
+mod keys;
+mod mpris;
 mod mpv;
 mod ops;
 mod login;
@@ -9,6 +11,7 @@ mod player_ui;
 mod prefs;
 mod settings;
 mod stream;
+mod textview;
 mod tg;
 mod uploads;
 mod viewer;
@@ -44,6 +47,7 @@ fn main() {
     let (family, font_px) = system_font();
     gpui_kit::application().with_assets(gpui_kit::assets::AllAssets).run(move |cx| {
         gpui_kit::init(cx);
+        keys::bind(cx);
         Theme::sync_system_appearance(None, cx);
         let font: (SharedString, Pixels) = (family.into(), px(font_px));
         let opts = WindowOptions {

@@ -15,6 +15,8 @@ tiny_http = "0.12"
 base64 = "0.22"
 image = { version = "0.25", default-features = false }
 lofty = "0.22"
+souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
+encoding_rs = "0.8"
 
 [build-dependencies]
 tdlib-rs = { version = "1.4.0", features = ["download-tdlib"] }

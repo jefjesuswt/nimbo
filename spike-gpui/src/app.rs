@@ -76,6 +76,12 @@ pub struct App {
     pub(crate) selected: BTreeSet<Target>,
     pub(crate) toast: Option<String>,
     pub(crate) toast_gen: u64,
+    pub(crate) focus: FocusHandle,
+    pub(crate) albums: bool,
+    pub(crate) album: Option<String>,
+    pub(crate) covers: Rc<crate::library::Covers>,
+    pub(crate) text: Option<crate::textview::TextDoc>,
+    pub(crate) mpris: Option<crate::mpris::Mpris>,
 }
 
 impl App {
@@ -116,7 +122,7 @@ impl App {
         .detach();
         let prefs = Prefs::load();
         let _ = cmd.send(Cmd::SetCap(prefs.cache_bytes()));
-        let me = Self {
+        let mut me = Self {
             auth: Auth::Loading,
             error: None,
             seen: 0,
@@ -144,8 +150,16 @@ impl App {
             selected: BTreeSet::new(),
             toast: None,
             toast_gen: 0,
+            focus: cx.focus_handle(),
+            albums: false,
+            album: None,
+            covers: Rc::default(),
+            text: None,
+            mpris: None,
         };
         me.apply_theme(window, cx);
+        me.mpris = crate::mpris::Mpris::start(window, cx);
+        window.focus(&me.focus, cx);
         me
     }
 
@@ -158,10 +172,12 @@ impl App {
                 self.items = items;
                 self.seen = seen;
                 self.listed_ms = Some(ms);
+                self.recover();
             }
             Event::Me { name, phone } => self.me = Some((name, phone)),
             Event::Local(id, path) => {
                 Rc::make_mut(&mut self.local).insert(id, path);
+                self.text_arrived(id);
             }
             Event::Upload(u) => match self.uploads.iter_mut().find(|x| x.key == u.key) {
                 Some(x) => {
@@ -173,13 +189,18 @@ impl App {
                 None => self.uploads.push(u),
             },
             // Sincronía en vivo (teléfono, otra sesión o nuestras operaciones).
-            Event::Upsert(item) => self.put(item),
+            Event::Upsert(item) => {
+                self.put(item);
+                self.recover();
+            }
             Event::Rekey(old, item) => {
                 self.items.retain(|x| x.msg_id != old);
                 self.put(item);
+                self.recover();
             }
             Event::Removed(ids) => {
                 self.items.retain(|x| !ids.contains(&x.msg_id));
+                self.recover();
                 self.selected.retain(|t| !matches!(t, Target::File(id) if ids.contains(id)));
             }
             Event::Notice(msg) => self.notice(msg, cx),
@@ -190,6 +211,10 @@ impl App {
             }
             Event::LoggedOut => cx.quit(),
         }
+    }
+
+    fn recover(&mut self) {
+        self.covers = Rc::new(crate::library::covers(&self.items));
     }
 
     // Alta o cambio de un elemento, en su sitio por carpeta y nombre.
@@ -325,8 +350,12 @@ impl Render for App {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = cx.theme().clone();
         let root = div().size_full().relative().bg(t.background).text_color(t.foreground);
+        let root = self.keyed(root, cx);
         if !matches!(self.auth, Auth::Ready) {
             return root.child(self.login(cx));
+        }
+        if self.text.is_some() {
+            return root.child(self.text_view(cx));
         }
         if self.viewer.is_some() {
             return root.child(self.viewer_view(cx));

@@ -4,8 +4,28 @@ use crate::app::App;
 use crate::mpv::{Frame, Mpv};
 use gpui_kit::component::slider::{SliderEvent, SliderState};
 use gpui_kit::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+// Posiciones guardadas (file id → segundos) para retomar audios largos y
+// vídeos. Un archivo de texto en el directorio de datos.
+fn positions_path() -> std::path::PathBuf {
+    crate::tg::data_dir().join("positions")
+}
+
+fn load_positions() -> HashMap<i32, f64> {
+    std::fs::read_to_string(positions_path())
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| l.split_once(' ').and_then(|(a, b)| Some((a.parse().ok()?, b.parse().ok()?))))
+        .collect()
+}
+
+// Solo se retoma lo largo: audios de 5 min o más y vídeos de más de 1 min.
+fn resumable(t: &Track, dur: f64) -> bool {
+    dur >= 300. || (t.video && dur > 60.)
+}
 
 #[derive(Clone)]
 pub struct Track {
@@ -57,6 +77,9 @@ pub struct Player {
     pub vol: Entity<SliderState>,
     dragging: bool,
     loaded: Instant,
+    positions: HashMap<i32, f64>,
+    saved: Instant,
+    dirty: bool,
 }
 
 pub fn fmt_time(s: f64) -> String {
@@ -130,6 +153,10 @@ impl Player {
         cx.spawn_in(window, async move |this, cx| loop {
             cx.background_executor().timer(Duration::from_millis(250)).await;
             let ok = this.update_in(cx, |this, window, cx| {
+                if this.player.mpv.is_none() {
+                    this.sync_mpris();
+                    return;
+                }
                 let p = &mut this.player;
                 let Some(m) = &p.mpv else { return };
                 p.pos = m.position();
@@ -149,6 +176,8 @@ impl Player {
                     let v = (p.pos / p.dur * 1000.) as f32;
                     p.seek.update(cx, |s, cx| s.set_value(v, window, cx));
                 }
+                p.remember();
+                this.sync_mpris();
                 cx.notify();
             });
             if ok.is_err() {
@@ -177,6 +206,9 @@ impl Player {
             vol,
             dragging: false,
             loaded: Instant::now(),
+            positions: load_positions(),
+            saved: Instant::now(),
+            dirty: false,
         }
     }
 
@@ -204,7 +236,13 @@ impl Player {
             self.apply_audio();
             self.apply_repeat();
         }
+        self.flush();
         if let Some(m) = &self.mpv {
+            // Retomar: la opción `start` vale para el siguiente loadfile.
+            match self.positions.get(&t.file_id) {
+                Some(p) if *p > 5. => m.set_string("start", &format!("{p:.1}")),
+                _ => m.set_string("start", "none"),
+            }
             m.load(&t.url);
         }
         self.loaded = Instant::now();
@@ -309,7 +347,47 @@ impl Player {
         }
     }
 
+    pub fn skip(&mut self, delta: f64) {
+        self.seek_to((self.pos + delta).clamp(0., self.dur.max(0.)));
+    }
+
+    pub fn seek_to(&mut self, secs: f64) {
+        if let Some(m) = &self.mpv {
+            m.seek(secs);
+            self.pos = secs;
+        }
+    }
+
+    // Guarda la posición de lo que suena (o la borra si está casi al final).
+    fn remember(&mut self) {
+        let Some(t) = self.current().cloned() else { return };
+        if self.dur <= 0. || !resumable(&t, self.dur) || self.loaded.elapsed() < Duration::from_secs(2) {
+            return;
+        }
+        if self.pos > self.dur - 15. {
+            self.dirty |= self.positions.remove(&t.file_id).is_some();
+        } else if self.pos > 10. {
+            self.positions.insert(t.file_id, self.pos);
+            self.dirty = true;
+        }
+        if self.saved.elapsed() > Duration::from_secs(5) {
+            self.flush();
+        }
+    }
+
+    fn flush(&mut self) {
+        if !self.dirty {
+            return;
+        }
+        let text: String = self.positions.iter().map(|(k, v)| format!("{k} {v:.1}\n")).collect();
+        let _ = std::fs::create_dir_all(crate::tg::data_dir());
+        let _ = std::fs::write(positions_path(), text);
+        self.dirty = false;
+        self.saved = Instant::now();
+    }
+
     pub fn stop(&mut self, window: &mut Window, cx: &mut gpui_kit::App) {
+        self.flush();
         self.mpv = None;
         self.queue.clear();
         self.orig = None;

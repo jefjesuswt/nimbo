@@ -91,8 +91,79 @@ pub fn rows(items: &[Item], dir: &str, query: &str) -> Vec<Row> {
     out
 }
 
+// Music por álbumes: carpetas con audios dentro (directos), por nombre;
+// dentro de uno, sus pistas.
+fn album_rows(items: &[Item], words: &[&str], album: Option<&str>) -> Vec<Row> {
+    if let Some(a) = album {
+        return items.iter().filter(|f| !f.hidden() && is_audio(f) && f.folder == a && matches(f, words)).cloned().map(Row::File).collect();
+    }
+    let mut n: BTreeMap<&str, usize> = BTreeMap::new();
+    for f in items.iter().filter(|f| !f.hidden() && is_audio(f)) {
+        *n.entry(f.folder.as_str()).or_default() += 1;
+    }
+    let mut out: Vec<Row> = n
+        .into_iter()
+        .filter(|(p, _)| words.iter().all(|w| p.to_lowercase().contains(w)))
+        .map(|(p, count)| Row::Folder { path: p.to_string(), name: if p.is_empty() { "Files".into() } else { p.rsplit('/').next().unwrap_or(p).to_string() }, count })
+        .collect();
+    out.sort_by_key(|r| match r { Row::Folder { name, .. } => name.to_lowercase(), _ => String::new() });
+    out
+}
+
+// Portadas: de carpeta (cualquier imagen de su raíz; canónica o generada
+// primero, si no la más antigua: folderCovers del teléfono) y las que los
+// audios sin arte toman de su carpeta (solo `#tgcover *` válidas, misma
+// carpeta: applyCoverLinks).
+#[derive(Default)]
+pub struct Covers {
+    pub tiles: HashMap<String, i32>,
+    pub links: HashMap<String, i32>,
+}
+
+fn image_thumb(f: &Item) -> i32 {
+    if f.thumb != 0 { f.thumb } else if f.size < 10 << 20 { f.file_id } else { 0 }
+}
+
+pub fn covers(items: &[Item]) -> Covers {
+    let mut best: HashMap<&str, (bool, i32, i32)> = HashMap::new();
+    let mut links = HashMap::new();
+    for f in items.iter().filter(|f| f.kind == "cover" || is_image(f)) {
+        let th = image_thumb(f);
+        if th == 0 {
+            continue;
+        }
+        let canon = f.kind == "cover" || crate::captions::is_cover_name(&f.name);
+        let key = (!canon, f.date, th);
+        let e = best.entry(f.folder.as_str()).or_insert(key);
+        if (key.0, key.1) < (e.0, e.1) {
+            *e = key;
+        }
+        let linked = f.caption.contains("#tgcover *") && (crate::captions::is_gen_cover(&f.caption) || crate::captions::is_cover_name(&f.name));
+        if linked {
+            links.insert(f.folder.clone(), th);
+        }
+    }
+    Covers { tiles: best.into_iter().map(|(k, v)| (k.to_string(), v.2)).collect(), links }
+}
+
+// Miniatura de una fila: la suya, la de su carpeta (audio) o la portada.
+pub fn row_thumb(row: &Row, c: &Covers) -> i32 {
+    match row {
+        Row::File(f) if f.thumb != 0 => f.thumb,
+        Row::File(f) if is_audio(f) => c.links.get(&f.folder).copied().unwrap_or(0),
+        Row::File(f) if is_image(f) => image_thumb(f),
+        Row::File(_) => 0,
+        Row::Folder { path, .. } => c.tiles.get(path).copied().unwrap_or(0),
+    }
+}
+
 // Music: por carpeta y nombre (álbumes juntos). Photos/Videos: lo último primero.
-pub fn section_rows(items: &[Item], section: Section, dir: &str, query: &str) -> Vec<Row> {
+pub fn section_rows(items: &[Item], section: Section, dir: &str, query: &str, albums: bool, album: Option<&str>) -> Vec<Row> {
+    if section == Section::Music && albums {
+        let q = query.trim().to_lowercase();
+        let words: Vec<&str> = q.split_whitespace().collect();
+        return album_rows(items, &words, album);
+    }
     let keep: fn(&Item) -> bool = match section {
         Section::Files | Section::Settings => return rows(items, dir, query),
         Section::Music => is_audio,
@@ -132,15 +203,10 @@ impl Thumbs {
     }
 }
 
-fn thumb_id(row: &Row) -> i32 {
-    match row {
-        Row::File(f) => f.thumb,
-        Row::Folder { .. } => 0,
-    }
-}
 
 fn row_text(row: &Row, searching: bool, section: Section) -> (&'static str, String, String) {
     match row {
+        Row::Folder { name, count, .. } if section == Section::Music => ("disc-3", name.clone(), format!("{count} track{}", if *count == 1 { "" } else { "s" })),
         Row::Folder { name, count, .. } => ("folder", name.clone(), format!("{count} items")),
         Row::File(f) => {
             let mut m = fmt_size(f.size);
@@ -168,6 +234,22 @@ impl App {
                 title = title
                     .child(icon("chevron-right").with_size(px(14.)).text_color(t.muted_foreground))
                     .child(Button::new(("crumb", i)).ghost().label(seg.to_string()).on_click(cx.listener(move |this, _, _, cx| this.open_dir(path.clone(), cx))));
+            }
+        } else if self.section == Section::Music {
+            if let Some(a) = self.album.clone() {
+                let name = if a.is_empty() { "Files".to_string() } else { a.rsplit('/').next().unwrap_or(&a).to_string() };
+                title = title
+                    .child(Button::new("album-back").ghost().icon(icon("arrow-left")).tooltip("Albums")
+                        .on_click(cx.listener(|this, _, _, cx| { this.album = None; cx.notify(); })))
+                    .child(div().px_1().overflow_hidden().whitespace_nowrap().text_ellipsis().text_size(px(17.)).font_weight(FontWeight::SEMIBOLD).child(name));
+            } else {
+                let albums = self.albums;
+                title = title
+                    .child(div().px_2().text_size(px(17.)).font_weight(FontWeight::SEMIBOLD).child("Music"))
+                    .child(Button::new("songs").ghost().small().label("Songs").selected(!albums)
+                        .on_click(cx.listener(|this, _, _, cx| { this.albums = false; cx.notify(); })))
+                    .child(Button::new("albums").ghost().small().label("Albums").selected(albums)
+                        .on_click(cx.listener(|this, _, _, cx| { this.albums = true; cx.notify(); })));
             }
         } else {
             title = title.child(div().px_2().text_size(px(17.)).font_weight(FontWeight::SEMIBOLD).child(self.section.label()));
@@ -224,7 +306,8 @@ impl App {
         let query = self.search.read(cx).value().to_string();
         let searching = !query.trim().is_empty();
         let section = self.section;
-        let rows = Rc::new(section_rows(&self.items, section, &self.dir, &query));
+        let rows = Rc::new(section_rows(&self.items, section, &self.dir, &query, self.albums, self.album.as_deref()));
+        let covers = self.covers.clone();
         if rows.is_empty() {
             let msg = match (searching, section) {
                 (true, _) => "No results",
@@ -247,8 +330,8 @@ impl App {
                         let row = rows[i].clone();
                         let (ic, title, meta) = row_text(&row, searching, section);
                         let playable = matches!(&row, Row::File(f) if is_audio(f) || is_video(f));
-                        let clickable = playable || matches!(&row, Row::Folder { .. }) || matches!(&row, Row::File(f) if is_image(f));
-                        let thumb = thumbs.get(thumb_id(&row));
+                        let clickable = playable || matches!(&row, Row::Folder { .. }) || matches!(&row, Row::File(f) if is_image(f) || crate::textview::is_text(f));
+                        let thumb = thumbs.get(row_thumb(&row, &covers));
                         let (view, rows) = (view.clone(), rows.clone());
                         let picked = selected.contains(&Target::of(&row));
                         let (mv, mr) = (view.clone(), row.clone());
@@ -319,7 +402,7 @@ impl App {
                             continue;
                         };
                         let (ic, title, meta) = row_text(&row, searching, section);
-                        let thumb = thumbs.get(thumb_id(&row));
+                        let thumb = thumbs.get(row_thumb(&row, &covers));
                         let folder = matches!(row, Row::Folder { .. });
                         let (view, rows) = (view.clone(), rows.clone());
                         let picked = selected.contains(&Target::of(&row));
@@ -378,6 +461,10 @@ impl App {
     // cola. Imagen: visor con las demás imágenes de la vista.
     fn activate(&mut self, rows: &[Row], i: usize, cx: &mut Context<Self>) {
         match &rows[i] {
+            Row::Folder { path, .. } if self.section == Section::Music => {
+                self.album = Some(path.clone());
+                cx.notify();
+            }
             Row::Folder { path, .. } => {
                 if self.section != Section::Files {
                     self.section = Section::Files;
@@ -396,7 +483,7 @@ impl App {
                     title: if x.title.is_empty() { x.name.rsplit_once('.').map(|(a, _)| a).unwrap_or(&x.name).to_string() } else { x.title.clone() },
                     artist: x.artist.clone(),
                     folder: x.folder.clone(),
-                    thumb: x.thumb,
+                    thumb: row_thumb(&Row::File((*x).clone()), &self.covers),
                     video: is_video(x),
                 }).collect();
                 self.player.play_queue(queue, at);
@@ -410,6 +497,7 @@ impl App {
                 let at = imgs.iter().position(|x| x.file_id == f.file_id).unwrap_or(0);
                 self.open_viewer(imgs, at, cx);
             }
+            Row::File(f) if crate::textview::is_text(f) => self.open_text(f.clone(), cx),
             Row::File(_) => {}
         }
     }
