@@ -1,0 +1,35 @@
+[package]
+name = "nimbo-desktop"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Cliente de escritorio de Nimbo (Linux, GPUI). Ver docs/adr/0010.
+[[bin]]
+name = "nimbo-desktop"
+path = "src/main.rs"
+
+[dependencies]
+gpui-kit = "0.10.0"
+tdlib-rs = { version = "1.4.0", features = ["download-tdlib"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+async-channel = "2"
+qrcode = { version = "0.14", default-features = false }
+tiny_http = "0.12"
+base64 = "0.22"
+image = { version = "0.25", default-features = false }
+lofty = "0.22"
+souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
+encoding_rs = "0.8"
+keyring = { version = "3", default-features = false, features = ["async-secret-service", "tokio", "crypto-rust"] }
+
+[build-dependencies]
+tdlib-rs = { version = "1.4.0", features = ["download-tdlib"] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 4

@@ -56,6 +56,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -67,6 +68,7 @@ import com.nimbo.R
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
 import com.nimbo.data.cloud.countRecursive
+import com.nimbo.data.cloud.folderCovers
 import com.nimbo.data.cloud.incomplete
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.player.progressFrac
@@ -117,6 +119,7 @@ fun FilesView(
         f.folder.takeIf { searching && it.isNotEmpty() },
         f.meta
     ).joinToString(" · ")
+    val covers = remember(all) { folderCovers(all) }
     if (subs.isEmpty() && files.isEmpty()) {
         Column(Modifier.fillMaxWidth()) {
             SubHeader(syncing, dir, onDir, showCrumb)
@@ -147,6 +150,7 @@ fun FilesView(
                 FolderRow(
                     name = label(s),
                     count = countRecursive(all, s),
+                    cover = covers[s]?.let { fileArt(it) },
                     onOpen = { onDir(s) },
                     onManage = { onManageDir(s) }
                 )
@@ -249,6 +253,7 @@ fun FilesView(
             ) {
                 items(subs, key = { "d$it" }) { s ->
                     val path = s
+                    val cover = covers[path]?.let { fileArt(it, mini = false) }
                     Card(
                         colors = CardDefaults.cardColors(containerColor = cs.secondaryContainer),
                         shape = MaterialTheme.shapes.large,
@@ -261,8 +266,9 @@ fun FilesView(
                             Modifier.fillMaxWidth().aspectRatio(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Carpetas sin carátula: solo icono.
-                            Icon(Icons.Filled.Folder, null, modifier = Modifier.size(48.dp), tint = cs.onSecondaryContainer)
+                            // Portada de la carpeta; si no tiene, icono.
+                            if (cover != null) Image(cover, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            else Icon(Icons.Filled.Folder, null, modifier = Modifier.size(48.dp), tint = cs.onSecondaryContainer)
                             // Badge carpeta: que se lea como carpeta, no archivo.
                             Box(
                                 Modifier.align(Alignment.BottomStart).padding(8.dp)
@@ -409,6 +415,7 @@ private fun SubHeader(
 private fun FolderRow(
     name: String,
     count: Int,
+    cover: ImageBitmap?,
     onOpen: () -> Unit,
     onManage: () -> Unit = {}
 ) {
@@ -418,7 +425,11 @@ private fun FolderRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        LeadingCircle(Icons.Filled.Folder)
+        if (cover != null) {
+            Image(cover, null, Modifier.size(40.dp).clip(MaterialTheme.shapes.small), contentScale = ContentScale.Crop)
+        } else {
+            LeadingCircle(Icons.Filled.Folder)
+        }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)

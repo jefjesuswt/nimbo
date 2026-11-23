@@ -9,6 +9,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Going back to a folder (or to the album list in Audio and Photos) now returns to where you were in the list instead of the top. Opening a folder still starts at the top.
 
+## [1.5.0] - 2026-11-22
+
+### Added
+- Files: folders show a cover in the list and the grid, like the desktop app: an image from the folder (cover.jpg first, otherwise the oldest) or, for music folders, the album art.
+
 ## [1.4.0] - 2026-11-22
 
 ### Added
@@ -103,7 +108,8 @@ First public release.
 - Your `api_id` / `api_hash` are typed in the app and stored encrypted on the phone only; Nimbo ships no keys.
 - The Telegram session database is encrypted and excluded from backups.
 
-[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/jefjesuswt/nimbo/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/jefjesuswt/nimbo/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jefjesuswt/nimbo/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/jefjesuswt/nimbo/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/jefjesuswt/nimbo/compare/v1.2.0...v1.3.0

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Nimbo
+GenericName=Cloud storage
+Comment=Your personal cloud, stored in Telegram's Saved Messages
+Exec=nimbo-desktop
+Icon=nimbo-desktop
+Terminal=false
+Categories=Network;FileTransfer;AudioVideo;
+Keywords=telegram;cloud;files;music;
+StartupWMClass=nimbo-desktop
