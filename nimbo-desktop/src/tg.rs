@@ -1,15 +1,31 @@
 // TDLib en su propio hilo con tokio. La UI (GPUI) solo recibe eventos por
 // un canal y manda órdenes por otro: ningún await de TDLib en el hilo de UI.
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering};
 use tdlib_rs::enums::{self, AuthorizationState, MessageContent, Update};
 use tdlib_rs::functions;
 use tdlib_rs::types;
 use crate::captions as cap;
 
 // Saved Messages: se fija al listar y lo usan las subidas.
-static CHAT: OnceLock<i64> = OnceLock::new();
+static CHAT: AtomicI64 = AtomicI64::new(0);
+// Cliente de TDLib vivo. Cerrar sesión lo cierra; se crea otro en su lugar.
+static CLIENT: AtomicI32 = AtomicI32::new(0);
+
+// El llavero (zbus sobre tokio) bloquea: fuera de los hilos del runtime.
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+    tokio::task::spawn_blocking(f).await.unwrap()
+}
+
+pub fn client() -> i32 {
+    CLIENT.load(Ordering::Relaxed)
+}
+
+fn chat() -> Option<i64> {
+    let c = CHAT.load(Ordering::Relaxed);
+    (c != 0).then_some(c)
+}
 
 // Tope de la caché de TDLib en bytes (0 = sin límite). Mismo criterio que
 // StoragePolicy del teléfono: tope, 7 días sin usar fuera, 1 h de inmunidad.
@@ -25,6 +41,8 @@ pub enum Auth {
     WaitQr(String),
     WaitCode,
     WaitPassword(String),
+    // Primer arranque: faltan api_id/api_hash (bool: hay de nimbo-cli).
+    NeedKeys(bool),
     Ready,
 }
 
@@ -92,6 +110,8 @@ pub enum Cmd {
     Phone(String),
     Code(String),
     Password(String),
+    Keys(i32, String),
+    ImportCliKeys,
     Fetch(i32),
     Upload { paths: Vec<PathBuf>, folder: String },
     // (archivo, carpeta relativa dentro de `dest`).
@@ -111,20 +131,17 @@ pub fn data_dir() -> PathBuf {
     let base = std::env::var("XDG_DATA_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".local/share"));
-    base.join("nimbo-spike-gpui")
+    base.join("nimbo-desktop")
 }
 
-// Claves de nimbo-cli (~/.config/nimbo/config): mismas que la app.
-fn keys() -> (i32, String) {
-    let home = std::env::var("HOME").unwrap();
-    let text = std::fs::read_to_string(format!("{home}/.config/nimbo/config")).expect("config");
-    let get = |k: &str| {
-        text.lines()
-            .filter(|l| !l.trim_start().starts_with('#'))
-            .find_map(|l| l.split_once('=').filter(|(a, _)| a.trim() == k).map(|(_, b)| b.trim().to_string()))
-            .expect(k)
-    };
-    (get("api_id").parse().unwrap(), get("api_hash"))
+// Los spikes guardaban en nimbo-spike-gpui: se mueve una vez para conservar
+// la sesión y las preferencias.
+pub fn migrate_data_dir() {
+    let new = data_dir();
+    let old = new.with_file_name("nimbo-spike-gpui");
+    if !new.exists() && old.exists() {
+        let _ = std::fs::rename(&old, &new);
+    }
 }
 
 fn thumb_of(t: &Option<types::Thumbnail>) -> i32 {
@@ -182,14 +199,14 @@ pub fn item_of(m: &types::Message) -> Option<Item> {
 }
 
 pub struct Tg {
-    pub client: i32,
     pub served: Arc<AtomicU64>,
 }
 
 // Arranca TDLib y devuelve (eventos para la UI, órdenes desde la UI).
 pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event>, tokio::sync::mpsc::UnboundedSender<Cmd>) {
-    let client = tdlib_rs::create_client();
+    CLIENT.store(tdlib_rs::create_client(), Ordering::Relaxed);
     let (ev_tx, ev_rx) = async_channel::unbounded();
+    let (keys_tx, mut keys_rx) = tokio::sync::mpsc::unbounded_channel::<(i32, String)>();
     let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::unbounded_channel::<Cmd>();
     let (auth_tx, mut auth_rx) = tokio::sync::mpsc::unbounded_channel::<AuthorizationState>();
 
@@ -197,7 +214,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
     // de Saved Messages: es la sincronía en vivo con el teléfono.
     let tx = ev_tx.clone();
     rt.spawn(async move {
-        let mine = |chat: i64| CHAT.get() == Some(&chat);
+        let mine = |c: i64| chat() == Some(c);
         loop {
             match tokio::task::spawn_blocking(tdlib_rs::receive).await.unwrap() {
                 Some((Update::AuthorizationState(u), _)) => {
@@ -217,7 +234,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
                     // Caption cambiado (mover/renombrar desde el teléfono).
                     let tx = tx.clone();
                     tokio::spawn(async move {
-                        match functions::get_message(u.chat_id, u.message_id, client).await {
+                        match functions::get_message(u.chat_id, u.message_id, client()).await {
                             Ok(enums::Message::Message(m)) => match item_of(&m) {
                                 Some(it) => { let _ = tx.send(Event::Upsert(it)).await; }
                                 None => { let _ = tx.send(Event::Removed(vec![u.message_id])).await; }
@@ -237,7 +254,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
 
     // Subidas: una cola, de una en una (como el teléfono).
     let (up_tx, up_rx) = tokio::sync::mpsc::unbounded_channel::<(u64, Job)>();
-    rt.spawn(transfers(client, up_rx, ev_tx.clone()));
+    rt.spawn(transfers(up_rx, ev_tx.clone()));
 
     // Recorte periódico de la caché (y al cambiar el tope: SetCap).
     let (trim_tx, mut trim_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
@@ -245,7 +262,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
         loop {
             let cap = CACHE_CAP.load(Ordering::Relaxed);
             if cap > 0 {
-                let _ = functions::optimize_storage(cap, CACHE_TTL_SEC, i32::MAX, IMMUNITY_SEC, vec![], vec![], vec![], false, 0, client).await;
+                let _ = functions::optimize_storage(cap, CACHE_TTL_SEC, i32::MAX, IMMUNITY_SEC, vec![], vec![], vec![], false, 0, client()).await;
             }
             let _ = tokio::time::timeout(TRIM_EVERY, trim_rx.recv()).await;
         }
@@ -256,7 +273,24 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
     rt.spawn(async move {
         let mut next_key = 0u64;
         while let Some(c) = cmd_rx.recv().await {
+            let client = client();
             let r = match c {
+                Cmd::Keys(id, hash) => {
+                    let h = hash.clone();
+                    if !blocking(move || crate::secrets::set_keys(id, &h)).await {
+                        let _ = tx.send(Event::Error("Couldn't save the keys in the system keyring".into())).await;
+                    }
+                    let _ = keys_tx.send((id, hash));
+                    continue;
+                }
+                Cmd::ImportCliKeys => {
+                    if let Some((id, hash)) = crate::secrets::cli_keys() {
+                        let h = hash.clone();
+                        let _ = blocking(move || crate::secrets::set_keys(id, &h)).await;
+                        let _ = keys_tx.send((id, hash));
+                    }
+                    continue;
+                }
                 Cmd::Fetch(id) => {
                     let tx = tx.clone();
                     tokio::spawn(async move {
@@ -316,7 +350,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
                     continue;
                 }
                 Cmd::Delete(ids) => {
-                    let Some(&chat) = CHAT.get() else { continue };
+                    let Some(chat) = chat() else { continue };
                     let n = ids.len();
                     let mut ok = true;
                     for part in ids.chunks(100) {
@@ -327,7 +361,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
                     continue;
                 }
                 Cmd::NewFolder(path) => {
-                    let Some(&chat) = CHAT.get() else { continue };
+                    let Some(chat) = chat() else { continue };
                     let content = enums::InputMessageContent::InputMessageText(types::InputMessageText {
                         text: types::FormattedText { text: cap::keep_text(&path), entities: vec![] },
                         link_preview_options: None,
@@ -358,13 +392,8 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
                     }
                     continue;
                 }
-                Cmd::LogOut => {
-                    let r = functions::log_out(client).await;
-                    if r.is_ok() {
-                        let _ = tx.send(Event::LoggedOut).await;
-                    }
-                    r
-                }
+                // El estado Closed que sigue lo recoge el bucle de autenticación.
+                Cmd::LogOut => functions::log_out(client).await,
                 Cmd::Qr => functions::request_qr_code_authentication(vec![], client).await,
                 Cmd::Phone(p) => functions::set_authentication_phone_number(p, None, client).await,
                 Cmd::Code(c) => functions::check_authentication_code(c, client).await,
@@ -379,23 +408,48 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
     // Autenticación y, al quedar lista, el listado.
     let tx = ev_tx.clone();
     rt.spawn(async move {
-        let _ = functions::set_log_verbosity_level(1, client).await;
+        let _ = functions::set_log_verbosity_level(1, client()).await;
         while let Some(s) = auth_rx.recv().await {
+            let client = client();
             let a = match s {
                 AuthorizationState::WaitTdlibParameters => {
-                    let (id, hash) = keys();
+                    // Claves del llavero; la primera vez, las pide la ventana.
+                    let (id, hash) = match blocking(crate::secrets::keys).await {
+                        Some(k) => k,
+                        None => {
+                            let cli = crate::secrets::cli_keys().is_some();
+                            let _ = tx.send(Event::Auth(Auth::NeedKeys(cli))).await;
+                            match keys_rx.recv().await {
+                                Some(k) => k,
+                                None => continue,
+                            }
+                        }
+                    };
+                    let _ = tx.send(Event::Auth(Auth::Loading)).await;
                     let dir = data_dir().join("tdlib");
                     std::fs::create_dir_all(&dir).unwrap();
                     let d = dir.to_string_lossy().to_string();
-                    // ponytail: spike sin clave de base.
+                    // Base cifrada con la clave del llavero (vacía solo en una
+                    // base de antes del cifrado: se cifra al entrar, abajo).
+                    let key = blocking(|| crate::secrets::get("db_key")).await.unwrap_or_default();
                     let r = functions::set_tdlib_parameters(
-                        false, d.clone(), d, String::new(), true, true, true, false,
-                        id, hash, "en".into(), "Nimbo Desktop (GPUI spike)".into(), "Linux".into(), "0.0.1".into(), client,
+                        false, d.clone(), d, key, true, true, true, false,
+                        id, hash, "en".into(), "Nimbo Desktop".into(), "Linux".into(), env!("CARGO_PKG_VERSION").into(), client,
                     )
                     .await;
                     if let Err(e) = r {
                         let _ = tx.send(Event::Error(e.message)).await;
                     }
+                    Auth::Loading
+                }
+                AuthorizationState::LoggingOut => Auth::Loading,
+                // Sesión cerrada: fuera el chat y un cliente nuevo, que vuelve
+                // a pedir parámetros (y con ellos el login).
+                AuthorizationState::Closed => {
+                    CHAT.store(0, Ordering::Relaxed);
+                    let _ = tx.send(Event::LoggedOut).await;
+                    CLIENT.store(tdlib_rs::create_client(), Ordering::Relaxed);
+                    let _ = functions::set_log_verbosity_level(1, crate::tg::client()).await;
                     Auth::Loading
                 }
                 AuthorizationState::WaitPhoneNumber => Auth::WaitPhone,
@@ -404,6 +458,7 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
                 AuthorizationState::WaitPassword(x) => Auth::WaitPassword(x.password_hint),
                 AuthorizationState::Ready => {
                     let _ = tx.send(Event::Auth(Auth::Ready)).await;
+                    encrypt_db(client).await;
                     list(client, &tx).await;
                     continue;
                 }
@@ -413,7 +468,23 @@ pub fn start(rt: &tokio::runtime::Runtime) -> (Tg, async_channel::Receiver<Event
         }
     });
 
-    (Tg { client, served: Arc::new(AtomicU64::new(0)) }, ev_rx, cmd_tx)
+    (Tg { served: Arc::new(AtomicU64::new(0)) }, ev_rx, cmd_tx)
+}
+
+// Base sin clave (spikes anteriores o sin llavero): se genera una, se guarda
+// en el llavero y TDLib re-cifra. Si el llavero falla, se queda como está.
+async fn encrypt_db(client: i32) {
+    if blocking(|| crate::secrets::get("db_key")).await.is_some() {
+        return;
+    }
+    let Some(key) = crate::secrets::new_db_key() else { return };
+    let k = key.clone();
+    if !blocking(move || crate::secrets::set("db_key", &k)).await {
+        return;
+    }
+    if functions::set_database_encryption_key(key, client).await.is_err() {
+        blocking(|| crate::secrets::delete("db_key")).await;
+    }
 }
 
 async fn list(client: i32, tx: &async_channel::Sender<Event>) {
@@ -422,7 +493,7 @@ async fn list(client: i32, tx: &async_channel::Sender<Event>) {
     let name = format!("{} {}", me.first_name, me.last_name).trim().to_string();
     let _ = tx.send(Event::Me { name, phone: format!("+{}", me.phone_number) }).await;
     let enums::Chat::Chat(chat) = functions::create_private_chat(me.id, false, client).await.unwrap();
-    let _ = CHAT.set(chat.id);
+    CHAT.store(chat.id, Ordering::Relaxed);
     let (mut from, mut seen, mut items) = (0i64, 0usize, Vec::new());
     loop {
         let Ok(enums::Messages::Messages(r)) = functions::get_chat_history(chat.id, from, 0, 100, false, client).await else { break };
@@ -577,7 +648,7 @@ fn embedded_cover(p: &Path) -> Option<Vec<u8>> {
 
 // Caption actual del servidor → `f` → se guarda si cambió.
 async fn edit_caption(client: i32, id: i64, f: impl FnOnce(&str) -> String) -> bool {
-    let Some(&chat) = CHAT.get() else { return false };
+    let Some(chat) = chat() else { return false };
     let Ok(enums::Message::Message(m)) = functions::get_message(chat, id, client).await else { return false };
     let Some(it) = item_of(&m) else { return false };
     let new = f(&it.caption);
@@ -595,11 +666,11 @@ pub enum Job {
 
 // Subidas y descargas en una sola cola, de una en una (como el teléfono).
 async fn transfers(
-    client: i32,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<(u64, Job)>,
     tx: async_channel::Sender<Event>,
 ) {
     while let Some((key, job)) = rx.recv().await {
+        let client = client();
         let (down, name, folder) = match &job {
             Job::Up(j) => (false, j.name.clone(), j.folder.clone()),
             Job::Down(item, to) => (true, item.name.clone(), to.to_string_lossy().to_string()),
@@ -674,7 +745,7 @@ async fn download_one(client: i32, item: &Item, dir: &Path, report: impl Fn(f32)
 }
 
 async fn upload_one(client: i32, job: &UpJob, report: impl Fn(f32)) -> Option<Item> {
-    let chat = *CHAT.get()?;
+    let chat = chat()?;
     let path = &job.path;
     let mut text = cap::tag_folder("", &job.folder);
     match job.cover {

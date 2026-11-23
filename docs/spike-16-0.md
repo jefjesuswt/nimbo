@@ -38,7 +38,7 @@ Resuelto: `tdlight-java 3.5.9+td.1.8.68`, `tdlight-api 4.0.565`, `tdlight-native
 
 ## GPUI (Rust) — comparación
 
-Código en `spike-gpui/` (GPUI Kit 0.10 + `tdlib-rs` 1.4 con `download-tdlib`, TDLib 1.8.61 por JSON).
+Código en `nimbo-desktop/` (antes `spike-gpui/`; GPUI Kit 0.10 + `tdlib-rs` 1.4 con `download-tdlib`, TDLib 1.8.61 por JSON).
 
 | Punto | Resultado |
 |---|---|
@@ -55,6 +55,8 @@ Código en `spike-gpui/` (GPUI Kit 0.10 + `tdlib-rs` 1.4 con `download-tdlib`, T
 | Contrato | `src/captions.rs` porta `Captions.kt` con los casos de `CaptionsTest.kt` (`cargo test`). |
 | Sincronía en vivo | `UpdateNewMessage`, `UpdateMessageContent` (relee el mensaje), `UpdateDeleteMessages` (permanentes) y `UpdateMessageSendSucceeded` (id temporal → definitivo), solo de Saved Messages. |
 | Escritorio | Atajos (espacio, ←/→, Ctrl+←/→, Esc, Ctrl+F, Retroceso/Alt+←, F) con contexto `!Input`. MPRIS con `souvlaki` (zbus): `playerctl -l` lista `nimbo`. Portadas de carpeta (`folderCovers`) y de audio (`applyCoverLinks`), vista de álbumes en Music, retomar audios ≥ 5 min y vídeos > 1 min (`start` de mpv), visor de texto (Markdown con `TextView`; UTF-8/UTF-16/Shift-JIS con `encoding_rs`). |
+| Producto | `api_id`/`api_hash` y clave de base en el llavero (`keyring`, Secret Service; llamadas en `spawn_blocking` porque zbus sobre tokio se cuelga si no). Primer arranque pide las claves o importa las de nimbo-cli. Base TDLib cifrada: una base vieja sin clave se re-cifra al entrar (`SetDatabaseEncryptionKey`). Cerrar sesión crea un cliente nuevo y vuelve al login, borrando estado y posiciones. Datos en `~/.local/share/nimbo-desktop` (se migra la carpeta del spike). |
+| Release | `cargo build --release` en 7 min: binario de 57 MB + `libtdjson` de 41 MB (debug: 1,1 GB). `packaging/PKGBUILD` instala en `/usr/lib/nimbo-desktop` y reescribe `libunwind.so.1` → `libgcc_s.so.1` con `patchelf`. ADR 0010 propone GPUI frente a la ADR 0008. |
 | Gestión | Como `CloudOps`: mover/renombrar carpeta = retag (400 ms entre ediciones), renombrar archivo = título en `#tgmeta`, carpeta vacía = texto `#tgkeep` (se borra y recrea al mover), borrar = `DeleteMessages` con revoke. Menú contextual, «⋯» y selección con Ctrl/Mayús. |
 | Caché | Tope configurable (512 MB / 1 GB / 5 GB / sin límite, por defecto 1 GB), TTL 7 días, inmunidad 1 h, cada 30 min: los mismos valores que `StoragePolicy` del teléfono. |
 | Descargas | `DownloadFile` → copia a `~/Downloads/Nimbo/<ruta>` → `DeleteFile` si no estaba ya en caché. |

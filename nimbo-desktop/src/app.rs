@@ -82,6 +82,8 @@ pub struct App {
     pub(crate) covers: Rc<crate::library::Covers>,
     pub(crate) text: Option<crate::textview::TextDoc>,
     pub(crate) mpris: Option<crate::mpris::Mpris>,
+    // Parar el reproductor necesita la ventana: se hace en el próximo render.
+    reset_player: bool,
 }
 
 impl App {
@@ -156,6 +158,7 @@ impl App {
             covers: Rc::default(),
             text: None,
             mpris: None,
+            reset_player: false,
         };
         me.apply_theme(window, cx);
         me.mpris = crate::mpris::Mpris::start(window, cx);
@@ -209,7 +212,30 @@ impl App {
                 self.local = Rc::default();
                 self.asked.borrow_mut().clear();
             }
-            Event::LoggedOut => cx.quit(),
+            // Sesión cerrada (aquí o desde otro dispositivo): todo a cero,
+            // como el teléfono (memoria, índice y posiciones), y al login.
+            Event::LoggedOut => {
+                self.items.clear();
+                self.listed_ms = None;
+                self.seen = 0;
+                self.me = None;
+                self.storage = None;
+                self.dir.clear();
+                self.album = None;
+                self.selected.clear();
+                self.uploads.clear();
+                self.viewer = None;
+                self.text = None;
+                self.modal = None;
+                self.local = Rc::default();
+                self.asked.borrow_mut().clear();
+                self.covers = Rc::default();
+                self.section = Section::Files;
+                self.use_phone = false;
+                self.error = None;
+                self.player.forget();
+                self.reset_player = true;
+            }
         }
     }
 
@@ -351,6 +377,9 @@ impl Render for App {
         let t = cx.theme().clone();
         let root = div().size_full().relative().bg(t.background).text_color(t.foreground);
         let root = self.keyed(root, cx);
+        if std::mem::take(&mut self.reset_player) {
+            self.player.stop(window, cx);
+        }
         if !matches!(self.auth, Auth::Ready) {
             return root.child(self.login(cx));
         }

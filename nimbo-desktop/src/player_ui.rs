@@ -324,6 +324,9 @@ impl App {
     // Vídeo a toda la ventana, con la barra debajo (sin recortarla).
     pub fn video_view(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let width = window.viewport_size().width;
+        // Ni más fino que la pantalla (nítido a escala 1,2) ni más de 4K.
+        let px_w = (f32::from(width) * window.scale_factor()).clamp(640., 3840.) as u32;
+        self.player.render_w.store(px_w, std::sync::atomic::Ordering::Relaxed);
         let frame = self.player.frame.clone();
         div()
             .v_flex()

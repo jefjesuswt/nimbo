@@ -124,7 +124,7 @@ impl App {
                         .child(item(cx, if name.is_empty() { "Telegram" } else { &name }, &phone, logout, true))))
                     .child(group(cx, "About").child(card(cx)
                         .child(item(cx, "Nimbo Desktop 0.0.1 (spike)",
-                            "GPUI · TDLib 1.8.61 · libmpv. Same cloud format as the phone app.", div(), true)))),
+                            "GPUI · TDLib 1.8.61 · libmpv. Same cloud format as the phone app. Keys and the database key live in the system keyring.", div(), true)))),
             )
     }
 

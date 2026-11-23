@@ -132,6 +132,7 @@ impl App {
                 let sub = if hint.is_empty() { "Your account has two-step verification".to_string() } else { format!("Hint: {hint}") };
                 self.field_card("Password", &sub, true, Cmd::Password, cx)
             }
+            Auth::NeedKeys(cli) => self.keys_card(cli, cx),
             Auth::Ready => card(cx),
         };
         let error = self.error.clone();
@@ -149,6 +150,44 @@ impl App {
                     .child(body)
                     .when_some(error, |d, e| d.child(div().text_color(cx.theme().danger).child(e))),
             )
+    }
+
+    // Primer arranque: api_id y api_hash propios (o los de nimbo-cli).
+    fn keys_card(&self, cli: bool, cx: &mut Context<Self>) -> Div {
+        let t = cx.theme().clone();
+        card(cx)
+            .child(
+                div()
+                    .v_flex()
+                    .gap_1()
+                    .child(div().font_weight(FontWeight::SEMIBOLD).child("Telegram API keys"))
+                    .child(div().text_size(px(13.)).text_color(t.muted_foreground)
+                        .child("Create them at my.telegram.org › API development tools. They're kept in your system keyring.")),
+            )
+            .child(div().v_flex().gap_1().child(div().text_size(px(12.)).child("api_id")).child(Input::new(&self.field)))
+            .child(div().v_flex().gap_1().child(div().text_size(px(12.)).child("api_hash")).child(Input::new(&self.secret)))
+            .child(
+                Button::new("keys-ok").primary().large().w_full().label("Continue")
+                    .on_click(cx.listener(|this, _, w, cx| {
+                        let id = this.field.read(cx).value().trim().parse::<i32>();
+                        let hash = this.secret.read(cx).value().trim().to_string();
+                        match id {
+                            Ok(id) if id > 0 && hash.len() >= 16 => {
+                                let _ = this.cmd.send(Cmd::Keys(id, hash));
+                                // Los mismos campos sirven luego para teléfono y contraseña.
+                                this.field.update(cx, |s, cx| s.set_value("", w, cx));
+                                this.secret.update(cx, |s, cx| s.set_value("", w, cx));
+                                this.error = None;
+                            }
+                            _ => this.error = Some("Check the api_id (a number) and the api_hash".into()),
+                        }
+                        cx.notify();
+                    })),
+            )
+            .when(cli, |d| {
+                d.child(Button::new("keys-cli").ghost().w_full().icon(icon("terminal")).label("Use the keys from nimbo-cli")
+                    .on_click(cx.listener(|this, _, _, _| { let _ = this.cmd.send(Cmd::ImportCliKeys); })))
+            })
     }
 
     fn field_card(&self, title: &str, sub: &str, secret: bool, make: fn(String) -> Cmd, cx: &mut Context<Self>) -> Div {

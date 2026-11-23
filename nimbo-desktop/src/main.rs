@@ -9,6 +9,7 @@ mod login;
 mod player;
 mod player_ui;
 mod prefs;
+mod secrets;
 mod settings;
 mod stream;
 mod textview;
@@ -41,9 +42,10 @@ fn system_font() -> (String, f32) {
 
 fn main() {
     // TDLib vive en su runtime tokio; GPUI tiene el hilo principal.
+    tg::migrate_data_dir();
     let rt = Box::leak(Box::new(tokio::runtime::Runtime::new().unwrap()));
     let (tg, events, cmd) = tg::start(rt);
-    let port = stream::serve(rt.handle().clone(), tg.client, tg.served.clone());
+    let port = stream::serve(rt.handle().clone(), tg.served.clone());
     let (family, font_px) = system_font();
     gpui_kit::application().with_assets(gpui_kit::assets::AllAssets).run(move |cx| {
         gpui_kit::init(cx);
@@ -52,7 +54,7 @@ fn main() {
         let font: (SharedString, Pixels) = (family.into(), px(font_px));
         let opts = WindowOptions {
             titlebar: Some(TitlebarOptions { title: Some("Nimbo".into()), ..Default::default() }),
-            app_id: Some("nimbo".into()),
+            app_id: Some("nimbo-desktop".into()),
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(None, size(px(1100.), px(760.)), cx))),
             ..Default::default()
         };

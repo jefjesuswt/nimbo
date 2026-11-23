@@ -9,7 +9,6 @@ const CHUNK: i64 = 512 * 1024;
 
 struct TgReader {
     rt: tokio::runtime::Handle,
-    client: i32,
     id: i32,
     pos: i64,
     end: i64,
@@ -25,7 +24,7 @@ impl Read for TgReader {
                 return Ok(0);
             }
             let want = CHUNK.min(self.end - self.pos + 1);
-            let got = self.rt.block_on(crate::tg::read(self.client, self.id, self.pos, want));
+            let got = self.rt.block_on(crate::tg::read(crate::tg::client(), self.id, self.pos, want));
             let Some(b) = got.filter(|b| !b.is_empty()) else { return Ok(0) };
             self.pos += b.len() as i64;
             crate::tg::count(&self.served, b.len());
@@ -40,7 +39,7 @@ impl Read for TgReader {
 }
 
 // Devuelve el puerto. Un hilo por petición (mpv abre varias al hacer seek).
-pub fn serve(rt: tokio::runtime::Handle, client: i32, served: Arc<AtomicU64>) -> u16 {
+pub fn serve(rt: tokio::runtime::Handle, served: Arc<AtomicU64>) -> u16 {
     let server = Arc::new(Server::http("127.0.0.1:0").unwrap());
     let port = server.server_addr().to_ip().unwrap().port();
     std::thread::spawn(move || {
@@ -48,7 +47,7 @@ pub fn serve(rt: tokio::runtime::Handle, client: i32, served: Arc<AtomicU64>) ->
             let (rt, served) = (rt.clone(), served.clone());
             std::thread::spawn(move || {
                 let Some(id) = req.url().rsplit('/').next().and_then(|s| s.parse::<i32>().ok()) else { return };
-                let size = rt.block_on(crate::tg::size(client, id));
+                let size = rt.block_on(crate::tg::size(crate::tg::client(), id));
                 let range = req.headers().iter().find(|h| h.field.equiv("Range")).map(|h| h.value.as_str().to_string());
                 let (start, end) = match range.as_deref().and_then(|r| r.strip_prefix("bytes=")) {
                     Some(r) => {
@@ -57,7 +56,7 @@ pub fn serve(rt: tokio::runtime::Handle, client: i32, served: Arc<AtomicU64>) ->
                     }
                     None => (0, size - 1),
                 };
-                let reader = TgReader { rt, client, id, pos: start, end, buf: vec![], off: 0, served };
+                let reader = TgReader { rt, id, pos: start, end, buf: vec![], off: 0, served };
                 let mut headers = vec![Header::from_bytes("Accept-Ranges", "bytes").unwrap()];
                 if range.is_some() {
                     headers.push(Header::from_bytes("Content-Range", format!("bytes {start}-{end}/{size}")).unwrap());

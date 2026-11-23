@@ -1,7 +1,9 @@
-// libmpv mínimo por FFI (solo lo que usa el spike) + render por software a
-// un búfer BGRA que GPUI pinta como imagen. ponytail: el render SW es lento
-// en 1080p; la versión de verdad iría por el render GL/dmabuf de mpv.
+// libmpv mínimo por FFI + render por software a un búfer BGRA que GPUI pinta
+// como imagen. Decodifica por hardware (auto-copy: VA-API/NVDEC y copia a
+// RAM) y escala al ancho real de la vista. El render por GPU (GL/dmabuf de
+// mpv) necesitaría texturas externas en GPUI, que hoy no expone.
 use std::ffi::{CString, c_char, c_int, c_void};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
 #[repr(C)]
@@ -74,7 +76,7 @@ pub struct Mpv {
 
 impl Mpv {
     // frames: cada fotograma nuevo, a lo sumo max_w de ancho.
-    pub fn new(frames: async_channel::Sender<Frame>, max_w: u32) -> Option<Self> {
+    pub fn new(frames: async_channel::Sender<Frame>, max_w: Arc<AtomicU32>) -> Option<Self> {
         unsafe {
             let mpv = mpv_create();
             if mpv.is_null() {
@@ -85,7 +87,7 @@ impl Mpv {
                 ("terminal", "no"),
                 ("input-default-bindings", "no"),
                 ("keep-open", "yes"),
-                ("hwdec", "no"),
+                ("hwdec", "auto-copy"),
                 ("cache", "yes"),
             ] {
                 let (k, v) = (CString::new(k).unwrap(), CString::new(v).unwrap());
@@ -112,7 +114,7 @@ impl Mpv {
         }
     }
 
-    fn spawn_render(&self, frames: async_channel::Sender<Frame>, max_w: u32) -> std::thread::JoinHandle<()> {
+    fn spawn_render(&self, frames: async_channel::Sender<Frame>, max_w: Arc<AtomicU32>) -> std::thread::JoinHandle<()> {
         let (h, wake, alive) = (self.h.clone(), self.wake.clone(), self.alive.clone());
         std::thread::spawn(move || {
             let fmt = CString::new("bgr0").unwrap();
@@ -136,7 +138,7 @@ impl Mpv {
                     continue;
                 }
                 // Tamaño de render: el del vídeo, como mucho max_w de ancho.
-                let w = (vw as u32).min(max_w);
+                let w = (vw as u32).min(max_w.load(Ordering::Relaxed).max(320));
                 let hgt = ((vh as f64) * (w as f64) / (vw as f64)).round() as u32;
                 let stride = (w as usize) * 4;
                 let mut buf = vec![0u8; stride * hgt as usize];

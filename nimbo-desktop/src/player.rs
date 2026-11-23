@@ -78,6 +78,8 @@ pub struct Player {
     dragging: bool,
     loaded: Instant,
     positions: HashMap<i32, f64>,
+    // Ancho en píxeles físicos al que mpv dibuja (el de la vista de vídeo).
+    pub render_w: Arc<std::sync::atomic::AtomicU32>,
     saved: Instant,
     dirty: bool,
 }
@@ -207,6 +209,7 @@ impl Player {
             dragging: false,
             loaded: Instant::now(),
             positions: load_positions(),
+            render_w: Arc::new(std::sync::atomic::AtomicU32::new(1280)),
             saved: Instant::now(),
             dirty: false,
         }
@@ -231,8 +234,7 @@ impl Player {
     pub fn go(&mut self, at: usize) {
         let Some(t) = self.queue.get(at).cloned() else { return };
         if self.mpv.is_none() {
-            // ponytail: 1280 de ancho máx. por el render por software.
-            self.mpv = Mpv::new(self.frames_tx.clone(), 1280);
+            self.mpv = Mpv::new(self.frames_tx.clone(), self.render_w.clone());
             self.apply_audio();
             self.apply_repeat();
         }
@@ -384,6 +386,13 @@ impl Player {
         let _ = std::fs::write(positions_path(), text);
         self.dirty = false;
         self.saved = Instant::now();
+    }
+
+    // Cerrar sesión: fuera las posiciones guardadas (memoria y disco).
+    pub fn forget(&mut self) {
+        self.positions.clear();
+        self.dirty = false;
+        let _ = std::fs::remove_file(positions_path());
     }
 
     pub fn stop(&mut self, window: &mut Window, cx: &mut gpui_kit::App) {
