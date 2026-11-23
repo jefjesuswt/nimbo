@@ -6,6 +6,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Files: folders show a cover in the list and the grid, like the desktop app: an image from the folder (cover.jpg first, otherwise the oldest) or, for music folders, the album art.
+
 ## [1.4.0] - 2026-11-22
 
 ### Added

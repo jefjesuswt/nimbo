@@ -38,6 +38,20 @@ fun countRecursive(files: List<TgFile>, dir: String): Int {
     return files.count { it.folder == dir || it.folder.startsWith(prefix) }
 }
 
+// Portada de carpeta en Files (solo UI, no toca captions), como el cliente
+// de escritorio: una imagen de su raíz (sin bajar a subcarpetas), la de nombre
+// canónico (cover.jpg…) o, si no, la más antigua, para que no cambie al subir
+// fotos. Sin imágenes, el arte de su música (embebido o la cover enlazada,
+// que applyCoverLinks ya dejó en la pista).
+fun folderCovers(files: List<TgFile>): Map<String, TgFile> =
+    files.filter { it.folder.isNotEmpty() }.groupBy { it.folder }.mapNotNull { (folder, inDir) ->
+        val image = inDir.filter { it.kind == TgKind.IMAGE }
+            .minWithOrNull(compareBy<TgFile>({ !isCoverName(it.name) }, { it.messageId }))
+        val art = image ?: inDir.filter { it.kind == TgKind.AUDIO && (it.thumbFileId != 0 || it.coverHash.isNotEmpty()) }
+            .minByOrNull { it.messageId }
+        art?.let { folder to it }
+    }.toMap()
+
 // Álbum = carpeta con archivos de la pestaña (Audio o Fotos), directos.
 data class TgAlbum(val folder: String, val files: List<TgFile>, val title: String = "") {
     // Vacío = raíz; la UI lo muestra como "Unsorted" traducido.

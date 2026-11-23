@@ -49,6 +49,7 @@ primero, sin over-engineering. Nació dentro de Toolbox (ver ADR 0006).
 - Archivo > límite: partes `nombre.ext.001`… con `#part <i>/<n> <grupo>` (se agrupan por carpeta + grupo; mover/borrar actúa sobre todas).
 - Cifrado: `<azar>.nimbo` + `#enc <info>` (nombre, tamaño y `#tgmeta` cifrados); formato de bloques en `data/crypto/EncFormat.kt`. Clave maestra envuelta en un texto `#tgkey 1 <iter> <sal> <envuelta>`: nunca borrarlo (sin él, los cifrados no se abren).
 - Contrato en `data/cloud/Captions.kt`. Carátulas: SOLO arte embebido en el audio o archivo canónico de la misma carpeta (`cover.jpg`, `folder.png`, `front.jpg`…, ver `CoverNames`). Sin heredar de subcarpetas/padres, sin emparejar por nombre de pista.
+- Portada de carpeta en Files (solo UI, no toca captions; igual que el escritorio): imagen de la raíz de la carpeta, canónica primero y si no la más antigua; sin imágenes, el arte de su primera pista (`folderCovers` en `Library.kt`).
 
 ## Seguridad
 - `api_id`/`api_hash` y la clave de la base TDLib viven solo en EncryptedSharedPreferences (`SecretStore`). Nunca en código ni repo.
