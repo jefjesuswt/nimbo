@@ -1,0 +1,62 @@
+# Paquete local de Nimbo Desktop para Arch. Se construye desde este checkout:
+#   cd packaging && makepkg -si
+#
+# libtdjson viene precompilado por tdlib-rs (download-tdlib, hecho con clang):
+# pide libc++/libc++abi (repos oficiales) y libunwind.so.1 de LLVM, que Arch
+# no trae. Sus símbolos (_Unwind_*) los da libgcc_s, así que se reescribe esa
+# dependencia con patchelf en vez de compilar TDLib.
+pkgname=nimbo-desktop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Desktop client for Nimbo: your personal cloud in Telegram's Saved Messages"
+arch=(x86_64)
+url="https://github.com/jefjesuswt/nimbo"
+license=(MIT)
+depends=(
+  mpv
+  openssl-3 zlib libc++ libc++abi gcc-libs glibc
+  wayland libxkbcommon libxcb vulkan-icd-loader fontconfig freetype2
+)
+makedepends=(cargo patchelf)
+optdepends=(
+  'gnome-keyring: keyring for the API keys and the database key (or any Secret Service)'
+  'xdg-desktop-portal: file picker for uploads'
+)
+options=(!lto !debug)
+
+_src() { cd "$startdir/.."; }
+
+prepare() {
+  _src
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  _src
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo build --release --locked
+}
+
+check() {
+  _src
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo test --release --locked
+}
+
+package() {
+  local t="$srcdir/target/release"
+  local lib
+  lib=$(find "$t/build" -path '*out/tdlib/lib/libtdjson.so.1.8.61' | head -1)
+  [ -n "$lib" ] || { echo "libtdjson not found"; return 1; }
+
+  install -Dm755 "$t/nimbo-desktop" "$pkgdir/usr/bin/nimbo-desktop"
+  install -Dm755 "$lib" "$pkgdir/usr/lib/nimbo-desktop/libtdjson.so.1.8.61"
+  patchelf --replace-needed libunwind.so.1 libgcc_s.so.1 "$pkgdir/usr/lib/nimbo-desktop/libtdjson.so.1.8.61"
+  # El runpath de compilación apunta a target/: al de instalación.
+  patchelf --set-rpath /usr/lib/nimbo-desktop "$pkgdir/usr/bin/nimbo-desktop"
+
+  _src
+  install -Dm644 packaging/nimbo-desktop.desktop "$pkgdir/usr/share/applications/nimbo-desktop.desktop"
+  install -Dm644 packaging/nimbo-desktop.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/nimbo-desktop.svg"
+  install -Dm644 ../LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
