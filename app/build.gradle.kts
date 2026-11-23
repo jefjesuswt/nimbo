@@ -15,8 +15,8 @@ android {
         applicationId = "com.nimbo"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.4.0"
+        versionCode = 7
+        versionName = "1.5.0"
         // TDLib trae .so x4 ABIs: solo arm64 (celu). Emulador x86_64 → añadir aquí.
         ndk { abiFilters += listOf("arm64-v8a") }
     }

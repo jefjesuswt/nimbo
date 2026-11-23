@@ -15,6 +15,7 @@ import com.nimbo.data.cloud.coverLinkOf
 import com.nimbo.data.cloud.decodeText
 import com.nimbo.data.cloud.defaultSort
 import com.nimbo.data.cloud.filterTgFiles
+import com.nimbo.data.cloud.folderCovers
 import com.nimbo.data.cloud.isCoverName
 import com.nimbo.data.cloud.isFolderCover
 import com.nimbo.data.cloud.isGenCover
@@ -284,6 +285,32 @@ class CaptionsTest {
         // Subcarpeta no hereda; arte embebido manda sobre la cover de carpeta.
         assertEquals(0, linked[1].thumbFileId)
         assertEquals(5, linked[2].thumbFileId)
+    }
+
+    @Test fun folderCoversFromRootImage() {
+        val items = listOf(
+            TgFile("a", "song.mp3", TgKind.AUDIO, "", messageId = 1, folder = "music"),
+            TgFile("b", "z-new.jpg", TgKind.IMAGE, "", messageId = 9, folder = "trip"),
+            TgFile("c", "a-old.jpg", TgKind.IMAGE, "", messageId = 3, folder = "trip"),
+            TgFile("d", "deep.jpg", TgKind.IMAGE, "", messageId = 2, folder = "trip/day1"),
+            TgFile("e", "scan.png", TgKind.IMAGE, "", messageId = 4, folder = "album"),
+            TgFile("f", "Folder.JPG", TgKind.IMAGE, "", messageId = 8, folder = "album"),
+            TgFile("g", "clip.mp4", TgKind.VIDEO, "", messageId = 5, folder = "videos"),
+            TgFile("h", "02.mp3", TgKind.AUDIO, "", messageId = 7, folder = "ost", thumbFileId = 40),
+            TgFile("i", "01.mp3", TgKind.AUDIO, "", messageId = 6, folder = "ost", thumbFileId = 41)
+        )
+        val covers = folderCovers(items)
+        // Sin nombre canónico: la imagen más antigua de la raíz de la carpeta.
+        assertEquals("c", covers["trip"]?.id)
+        // La subcarpeta tiene la suya; la del padre no baja.
+        assertEquals("d", covers["trip/day1"]?.id)
+        // Nombre canónico manda aunque sea más nuevo.
+        assertEquals("f", covers["album"]?.id)
+        // Solo música con arte (embebido o cover enlazada): la de la primera pista.
+        assertEquals("i", covers["ost"]?.id)
+        // Música sin arte o solo vídeo: sin portada.
+        assertNull(covers["music"])
+        assertNull(covers["videos"])
     }
 
     @Test fun foldersNav() {
