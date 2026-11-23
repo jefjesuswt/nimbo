@@ -341,7 +341,7 @@ private fun CloudContent(
                 modifier = Modifier.weight(1f).nestedScroll(clearOnScroll)
             ) {
                 val albums = listing.albums
-                if (albums != null) AlbumsView(albums, audio = tab == CloudTab.AUDIO, grid = grid, onOpen = vm::openAlbum)
+                if (albums != null) AlbumsView(albums, audio = tab == CloudTab.AUDIO, grid = grid, onOpen = vm::openAlbum, scrollKey = listing.scrollKey, scroll = vm.scroll)
                 else FilesView(
                     listing = listing,
                     all = all,
@@ -362,6 +362,7 @@ private fun CloudContent(
                     syncing = syncing && batches.isEmpty(),
                     selection = selection,
                     onToggle = vm::toggle,
+                    scroll = vm.scroll,
                     compact = tab == CloudTab.PHOTOS,
                     fabSpace = tab == CloudTab.FILES
                 )

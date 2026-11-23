@@ -52,7 +52,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +62,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nimbo.ui.common.KeepScroll
+import com.nimbo.ui.common.ScrollMemory
 import com.nimbo.R
 import com.nimbo.data.cloud.TgFile
 import com.nimbo.data.cloud.TgKind
@@ -97,6 +98,7 @@ fun FilesView(
     syncing: Boolean,
     selection: Set<String>,
     onToggle: (TgFile) -> Unit,
+    scroll: ScrollMemory,
     // Fotos: galería densa sin pie.
     compact: Boolean = false,
     // Hueco abajo para que los FABs (solo en Files) no tapen el último ítem.
@@ -137,7 +139,7 @@ fun FilesView(
         }
     } else if (!grid) {
         val listState = rememberLazyListState()
-        LaunchedEffect(dir, query) { listState.scrollToItem(0) }
+        KeepScroll(listing.scrollKey, !searching, scroll, listState)
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -239,7 +241,7 @@ fun FilesView(
             Column(Modifier.fillMaxSize()) {
                 SubHeader(syncing, dir, onDir, showCrumb)
                 val gridState = rememberLazyGridState()
-                LaunchedEffect(dir, query) { gridState.scrollToItem(0) }
+                KeepScroll(listing.scrollKey, !searching, scroll, gridState)
                 // Adaptive: 2 columnas en vertical, 4-5 en horizontal.
                 LazyVerticalGrid(
                     state = gridState,
