@@ -9,6 +9,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Encolar subidas desde Kitto (spec 16): Kitto se firma con la clave
+         de Nimbo y solo declara uses-permission. -->
+    <permission
+        android:name="com.nimbo.permission.ENQUEUE_UPLOAD"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".NimboApplication"
         android:allowBackup="false"
@@ -44,6 +50,15 @@
             android:name=".data.transfer.UploadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Kitto encola subidas en 2do plano (spec 16). -->
+        <receiver
+            android:name=".EnqueueReceiver"
+            android:exported="true"
+            android:permission="com.nimbo.permission.ENQUEUE_UPLOAD">
+            <intent-filter>
+                <action android:name="com.nimbo.action.ENQUEUE_UPLOAD" />
+            </intent-filter>
+        </receiver>
         <!-- Player en fondo + notificación (7d). -->
         <service
             android:name=".player.PlaybackService"

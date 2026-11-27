@@ -61,3 +61,8 @@
 - [ ] 12 verificar en celu: configurar, subir cifrado (vídeo, audio, foto, texto, > 2 GB), seek, bloquear/desbloquear, otro teléfono, contraseña errónea
 - [ ] 12b Cambiar contraseña · [x] 12c cifrar lo ya subido · [ ] 12d miniaturas cifradas
 - [ ] 12c verificar en celu: cifrar carpeta mixta (audio con título editado, foto, troceado), cancelar a mitad, bloquear a mitad
+
+## Integraciones (spec 16)
+- [x] 16 Encolar subidas desde Kitto en segundo plano (broadcast `ENQUEUE_UPLOAD`, permiso `signature` (Kitto firmado con la clave de Nimbo), carpeta anidada, choques se saltan)
+- [ ] 16 verificar en celu (Android 14+): Kitto reinstalado tras Nimbo, broadcast con Nimbo cerrado, FGS arranca, subcarpetas
+- [ ] Carpetas con espacios: el tag `#nimbo/<ruta>` se parte por espacios al leer (`parseFolder`); "Mi álbum" queda como "Mi". Afecta a toda subida, no solo a la 16
