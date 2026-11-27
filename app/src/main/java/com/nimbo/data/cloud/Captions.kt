@@ -18,6 +18,10 @@ fun normalizePath(p: String): String =
     p.trim().replace('\\', '/').split('/').map { it.trim() }
         .filter { it.isNotEmpty() && it != "." }.joinToString("/")
 
+// Carpeta que llega de otra app (spec 16): normalizada; con `..` no se acepta.
+fun safeFolder(raw: String?): String? =
+    normalizePath(raw.orEmpty()).takeIf { p -> p.split('/').none { it == ".." } }
+
 fun parseFolder(caption: String): String {
     val tag = caption.split(Regex("\\s+")).firstOrNull(::isFolderTag)
         ?: return ""

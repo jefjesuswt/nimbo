@@ -26,6 +26,7 @@ import com.nimbo.data.cloud.parentOf
 import com.nimbo.data.cloud.parseCoverLink
 import com.nimbo.data.cloud.parseCoverName
 import com.nimbo.data.cloud.parseFolder
+import com.nimbo.data.cloud.safeFolder
 import com.nimbo.data.cloud.parseMeta
 import com.nimbo.data.cloud.showTitle
 import com.nimbo.data.cloud.sortTg
@@ -186,6 +187,15 @@ class CaptionsTest {
             "x.mp3",
             TgFile("a", "x.mp3", TgKind.AUDIO, "").showTitle()
         )
+    }
+
+    @Test fun safeFolders() {
+        assertEquals("Title/mp3", safeFolder("/Title/mp3/"))
+        assertEquals("Title/mp3", safeFolder(" Title // mp3 "))
+        assertEquals("", safeFolder(null))
+        assertNull(safeFolder("../x"))
+        assertNull(safeFolder("a/../../b"))
+        assertEquals("a/..b", safeFolder("a/..b"))
     }
 
     @Test fun folders() {

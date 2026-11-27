@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Kitto can queue uploads in the background: after extracting an archive, a Kitto automation sends the files and the cloud folder (nested folders work) and Nimbo uploads them without opening.
+
+### Fixed
+- The upload notification no longer stops while other batches are still waiting their turn.
+
 ## [1.5.1] - 2026-11-22
 
 ### Fixed

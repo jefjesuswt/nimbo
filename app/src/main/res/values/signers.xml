@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SHA-256 del certificado de las apps que pueden encolar subidas
+         (spec 16), además de las firmadas con la clave de Nimbo.
+         Kitto: clave debug "Android Debug" con la que se instala hoy. -->
+    <string-array name="enqueue_signers" translatable="false">
+        <item>9d2c63e431be6352bfc99dc7b95c6fa9e287677c8419adcf78cf3c49195a6591</item>
+    </string-array>
+</resources>

@@ -75,6 +75,6 @@ class MainActivity : ComponentActivity() {
     // ACTION_SEND del sistema → backup a Saved Messages en cuanto haya sesión.
     private fun handleShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
-        IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let(transfers::enqueueWhenReady)
+        IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let { transfers.enqueueWhenReady(listOf(it)) }
     }
 }

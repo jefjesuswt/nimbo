@@ -172,22 +172,36 @@ class TransferManager @Inject constructor(
         dropBatch(id)
     }
 
-    // Compartido desde otra app (ACTION_SEND): sube en cuanto haya sesión.
-    fun enqueueWhenReady(uri: Uri) {
-        scope.launch {
-            client.auth.first { it == TgAuthState.READY }
-            enqueue(listOf(uri))
+    // Compartido desde otra app (ACTION_SEND) o encolado por Kitto en 2do
+    // plano (spec 16): sube en cuanto haya sesión. background: el servicio
+    // arranca ya (Android 12+ solo deja iniciar el FGS dentro de la ventana
+    // del broadcast), sin sesión en 60 s se rinde y los choques se saltan
+    // (nadie mira el diálogo).
+    fun enqueueWhenReady(uris: List<Uri>, folder: String = "", background: Boolean = false) {
+        if (uris.isEmpty()) return
+        if (background) UploadService.ensure(ctx)
+        scope.launch(io) {
+            val ready = if (!background) client.auth.first { it == TgAuthState.READY }.let { true }
+            else withTimeoutOrNull(60_000) { client.auth.first { it == TgAuthState.READY } } != null
+            if (ready) enqueueNow(uris, folder, skipConflicts = background)
+            else Log.w(TAG, "ENQUEUE-SIN-SESION")
+            if (background && _batches.value.isEmpty()) UploadService.finish(ctx)
         }
     }
 
     // Backup: uris → lote con tamaños → serie. Label = archivo o "N files".
     fun enqueue(uris: List<Uri>, folder: String = "") {
         if (uris.isEmpty()) return
-        scope.launch(io) {
-            val jobs = uris.mapNotNull { jobOf(it, folder, false) }
-            if (jobs.isEmpty()) return@launch
-            prepareBatch(if (jobs.size == 1) BatchLabel.Name(jobs[0].name) else BatchLabel.Files(jobs.size), jobs)
-        }
+        scope.launch(io) { enqueueNow(uris, folder) }
+    }
+
+    private suspend fun enqueueNow(uris: List<Uri>, folder: String, skipConflicts: Boolean = false) {
+        val raw = uris.mapNotNull { jobOf(it, folder, false) }
+        if (raw.isEmpty()) return
+        // Como walkDir: imagen canónica junto a audio = cover de la carpeta.
+        val cover = if (raw.any { isAudioName(it.name) }) raw.indexOfFirst { isCoverName(it.name) } else -1
+        val jobs = raw.mapIndexed { i, j -> if (i == cover) j.copy(cover = true) else j }
+        prepareBatch(if (jobs.size == 1) BatchLabel.Name(jobs[0].name) else BatchLabel.Files(jobs.size), jobs, skipConflicts)
     }
 
     // Subir carpeta (7h1): walk SAF, archivos con ruta + cover de carpeta.
@@ -220,8 +234,10 @@ class TransferManager @Inject constructor(
     }
 
     // Detecta choques (mismo folder+nombre, o cover de esa carpeta) antes de
-    // subir. Sin choques → lote directo; con choques → diálogo.
-    private suspend fun prepareBatch(label: BatchLabel, jobs: List<UpJob>) {
+    // subir. Sin choques → lote directo; con choques → diálogo (o se saltan).
+    // ponytail: si el índice aún no cargó (proceso recién nacido) no ve
+    // choques y duplica; esperar a la primera carga si molesta.
+    private suspend fun prepareBatch(label: BatchLabel, jobs: List<UpJob>, skipConflicts: Boolean = false) {
         val byName = repo.files.value.associate { (it.folder + "\n" + it.name) to it.messageIds() }
         val bad = mutableListOf<Conflict>()
         jobs.forEachIndexed { i, job ->
@@ -229,8 +245,12 @@ class TransferManager @Inject constructor(
             val ids = if (job.cover) repo.coverMsgs[job.folder]?.let(::listOf) ?: vis else vis
             if (ids != null) bad.add(Conflict(i, job.name, job.folder, ids))
         }
-        if (bad.isEmpty()) runBatch(label, jobs)
-        else _pending.value = PendingBatch(label, jobs, bad)
+        when {
+            bad.isEmpty() -> runBatch(label, jobs)
+            skipConflicts -> jobs.filterIndexed { i, _ -> bad.none { it.jobIdx == i } }
+                .takeIf { it.isNotEmpty() }?.let { runBatch(label, it) }
+            else -> _pending.value = PendingBatch(label, jobs, bad)
+        }
     }
 
     // null = cancelar el lote. REPLACE borra primero.
@@ -345,7 +365,7 @@ class TransferManager @Inject constructor(
             batchJobs.remove(id)
             cancelFlags.remove(id)
             dropBatch(id)
-            if (_batches.value.none { it.running }) UploadService.finish(ctx)
+            if (_batches.value.isEmpty()) UploadService.finish(ctx)
         }
     }
 
@@ -438,7 +458,7 @@ class TransferManager @Inject constructor(
             cancelFlags.remove(id)
             batchSent.remove(id)
             dropBatch(id)
-            if (_batches.value.none { it.running }) UploadService.finish(ctx)
+            if (_batches.value.isEmpty()) UploadService.finish(ctx)
         }
         return bad.isEmpty()
     }
@@ -661,7 +681,7 @@ class TransferManager @Inject constructor(
                 batchJobs.remove(id)
                 cancelFlags.remove(id)
                 dropBatch(id)
-                if (_batches.value.none { it.running }) UploadService.finish(ctx)
+                if (_batches.value.isEmpty()) UploadService.finish(ctx)
             }
         }
     }
