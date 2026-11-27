@@ -18,15 +18,12 @@ Activity y Android bloquea abrir Activities desde segundo plano.
   `queryBroadcastReceivers` y si no hay, pide actualizar Nimbo).
 
 ## Permiso
-- Nimbo define `com.nimbo.permission.ENQUEUE_UPLOAD`,
-  `signature|knownSigner`, `knownCerts` = `@array/enqueue_signers`
-  (SHA-256 del certificado de Kitto). El receptor lo exige.
-- Por qué no `signature` solo: Nimbo se firma con su clave de release y Kitto
-  con otra; `signature` no lo concedería nunca. Y Kitto NO debe definir el
-  permiso (solo `uses-permission`): dos apps con firmas distintas definiendo
-  el mismo permiso → `INSTALL_FAILED_DUPLICATE_PERMISSION`.
-- Android 8-11 ignora `knownSigner`: ahí solo vale la misma firma.
-- Cambiar la clave de Kitto = añadir su SHA-256 a `signers.xml`.
+- Nimbo define `com.nimbo.permission.ENQUEUE_UPLOAD` con `signature`; el
+  receptor lo exige. Kitto se firma con la misma clave (`NIMBO_KEYSTORE`).
+- Kitto NO define el permiso (solo `uses-permission`): dos apps con firmas
+  distintas definiendo el mismo permiso → `INSTALL_FAILED_DUPLICATE_PERMISSION`.
+- Kitto instalado antes que Nimbo no recibe el permiso: tras instalar Nimbo,
+  reinstalar Kitto (`adb install -r`).
 
 ## Comportamiento
 - `EnqueueReceiver` (`@AndroidEntryPoint`) valida y llama a

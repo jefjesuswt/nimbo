@@ -9,13 +9,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Encolar subidas desde Kitto (spec 16). knownSigner (Android 12+):
-         Kitto no comparte la clave de Nimbo; sus certificados en signers.xml. -->
+    <!-- Encolar subidas desde Kitto (spec 16): Kitto se firma con la clave
+         de Nimbo y solo declara uses-permission. -->
     <permission
         android:name="com.nimbo.permission.ENQUEUE_UPLOAD"
-        android:protectionLevel="signature|knownSigner"
-        android:knownCerts="@array/enqueue_signers"
-        tools:targetApi="31" />
+        android:protectionLevel="signature" />
 
     <application
         android:name=".NimboApplication"
